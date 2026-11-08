@@ -11,7 +11,7 @@ DEFAULTS: dict = {
                   "recall_hits": 3, "recall_chars": 400},
     "gemini": {"model": "gemini-3.8-flash", "thinking_level": "LOW"},
     "claude": {"model": "claude-haiku-5-5", "effort": "low"},
-    "dream": {"provider": "claude", "effort": "medium", "thinking_level": "MEDIUM", "min_turns": 10,
+    "dream": {"provider": "claude", "effort": "low", "thinking_level": "LOW", "min_turns": 10,
               "chunk_turns": 25, "max_output_tokens": 16000, "cast_limit": 60, "on_quit": True},
     "budget": {"daily_token_cap": 600_000},
 }

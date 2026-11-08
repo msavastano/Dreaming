@@ -4,7 +4,9 @@
     python -m lorekeeper.eval --setups A,C --turns 30        # a cheaper partial run
 
 Setups (from the plan):
-  A  No memory: the recent-turns window only. No tools, notes or recall.
+  A  No notes: the recent-turns window and the state sheet (flags, people, inventory) only.
+     No tools, notes or recall. The state sheet is itself a small memory, so the report also
+     counts the questions whose answer wasn't on it.
   B  Notes: A plus remember, search_memory, notes in the prompt and recall.
   C  Notes + dreaming: B plus a dream every `dream_every` turns (wiki pages, checked notes, cast in canon).
 
@@ -27,13 +29,13 @@ from pathlib import Path
 
 from . import gm
 from .config import load_config
-from .dream import dream, make_dream_llm
+from .dream import DreamError, dream, make_dream_llm
 from .llm import Budgeted, make_provider
 from .play import ROOT, Campaign, Game
 from .transcript import load_all_turns, load_window
 
 SETUPS = {
-    "A": "No memory (recent turns only)",
+    "A": "Window + state sheet, no notes",
     "B": "Notes (remember, search, recall)",
     "C": "Notes + dreaming",
 }
@@ -63,10 +65,13 @@ class SetupResult:
     wiki_chars: int = 0
     transcript_chars: int = 0
     stopped: str = ""
+    dream_failures: list[str] = field(default_factory=list)
 
-    def accuracy(self, in_view: bool | None = None, checkpoint: int | None = None) -> tuple[int, int]:
+    def accuracy(self, in_view: bool | None = None, checkpoint: int | None = None,
+                 in_state: bool | None = None) -> tuple[int, int]:
         rows = [a for a in self.answers if (in_view is None or a["in_view"] == in_view)
-                and (checkpoint is None or a["checkpoint"] == checkpoint)]
+                and (checkpoint is None or a["checkpoint"] == checkpoint)
+                and (in_state is None or a.get("in_state", False) == in_state)]
         return sum(a["correct"] for a in rows), len(rows)
 
 
@@ -98,9 +103,14 @@ def run_setup(setup: str, script: dict, folder: Path, base_config: dict, provide
             if wrong and setup in ("B", "C") and i == wrong["after"]:
                 campaign.notes.add(wrong["text"], wrong["about"], turn=f"s001-t{i:04d}")
             if setup == "C" and i % script["dream_every"] == 0:
-                dream(campaign, dream_llm, dream_rules, config, force=True)
-                game.reload_canon()
-                log(f"  [{setup}] dreamed at turn {i}")
+                try:
+                    done = dream(campaign, dream_llm, dream_rules, config, force=True)
+                    game.reload_canon()
+                    split = f", split {done.splits} chunk(s)" if done and done.splits else ""
+                    log(f"  [{setup}] dreamed at turn {i}{split}")
+                except DreamError as e:  # keep playing; the next dream retries these turns
+                    result.dream_failures.append(f"turn {i}: {e}")
+                    log(f"  [{setup}] dream failed at turn {i}: {e}")
             if i in quiz_after:
                 window = {t["id"] for t in load_window(campaign.transcripts, config["narration"]["window_turns"],
                                                        config["narration"]["window_step"])}
@@ -109,11 +119,14 @@ def run_setup(setup: str, script: dict, folder: Path, base_config: dict, provide
                         continue
                     answer = game.ask(item["q"])
                     planted = f"s001-t{item['planted']:04d}"
+                    state_text = json.dumps(game.state, ensure_ascii=False)
                     result.answers.append({
                         "checkpoint": i, "id": item["id"], "question": item["q"], "answer": answer,
                         "correct": grade(answer, item["needs"]),
                         # Canon facts (planted 0) are always in view.
                         "in_view": item["planted"] == 0 or planted in window,
+                        # The state sheet is in every prompt, so a fact on it isn't a test of notes or dreaming.
+                        "in_state": grade(state_text, item["needs"]),
                     })
                 right, total = result.accuracy(checkpoint=i)
                 log(f"  [{setup}] quiz after turn {i}: {right}/{total}")
@@ -155,17 +168,20 @@ def report(results: list[SetupResult], script: dict, meta: dict) -> str:
              f"{meta['when']} · narration: {meta['provider']} · dreaming: {meta['dream_provider']} · "
              f"{meta['turns']} turns", "",
              "Out of view means the fact's turn had left the game master's recent-turns window, so only memory "
-             "could supply it. That column is the one that measures memory.", "",
-             "| Setup | Quiz, out of view | Quiz, all | Notes | remember / search calls | Turns with recall "
-             "| Tokens per turn (in / cached / out) | Dream tokens | Wiki pages |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "could supply it. The state sheet (flags, people, inventory) is in every prompt, so \"out of view, "
+             "not on the sheet\" is the column that measures notes and dreaming.", "",
+             "| Setup | Out of view, not on the sheet | Quiz, out of view | Quiz, all | Notes "
+             "| remember / search calls | Turns with recall | Tokens per turn (in / cached / out) | Dream tokens "
+             "| Wiki pages |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in results:
         play = r.usage.get("narrate", {"calls": 0, "input": 0, "output": 0, "cached": 0})
         per = max(r.turns, 1)
         d = r.usage.get("dream")
         dream_tokens = f"{d['input']:,} / {d['output']:,}" if d else "-"
         lines.append(
-            f"| {r.setup}. {SETUPS[r.setup]} | {_pct(*r.accuracy(in_view=False))} | {_pct(*r.accuracy())} "
+            f"| {r.setup}. {SETUPS[r.setup]} | {_pct(*r.accuracy(in_view=False, in_state=False))} "
+            f"| {_pct(*r.accuracy(in_view=False))} | {_pct(*r.accuracy())} "
             f"| {r.notes} | {r.remember_calls} / {r.search_calls} | {r.recall_turns} "
             f"| {play['input'] // per:,} / {play['cached'] // per:,} / {play['output'] // per:,} "
             f"| {dream_tokens} | {r.wiki_pages} |")
@@ -178,9 +194,10 @@ def report(results: list[SetupResult], script: dict, meta: dict) -> str:
         for c in checkpoints:
             for r in results:
                 a = next((a for a in r.answers if a["id"] == item["id"] and a["checkpoint"] == c), None)
-                cells.append("-" if a is None else ("yes" if a["correct"] else "no") + ("" if a["in_view"] else "*"))
+                cells.append("-" if a is None else ("yes" if a["correct"] else "no") + ("" if a["in_view"] else "*")
+                             + ("s" if a.get("in_state") else ""))
         lines.append(f"| {item['q']} | " + " | ".join(cells) + " |")
-    lines += ["", "\\* out of view when asked.", ""]
+    lines += ["", "\\* out of view when asked. s: the answer was on the state sheet.", ""]
     extra = []
     for r in results:
         if r.wrong_note_status:
@@ -189,6 +206,8 @@ def report(results: list[SetupResult], script: dict, meta: dict) -> str:
             extra.append(f"- {r.setup}: wiki is {r.wiki_chars / max(r.transcript_chars, 1):.2f}x the transcript's size.")
         if r.parse_errors:
             extra.append(f"- {r.setup}: {r.parse_errors} turns had no usable state change.")
+        for f in r.dream_failures:
+            extra.append(f"- {r.setup}: dream failed at {f}")
         if r.stopped:
             extra.append(f"- {r.setup}: stopped early at turn {r.turns}: {r.stopped}")
     if extra:

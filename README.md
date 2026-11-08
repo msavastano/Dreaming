@@ -105,8 +105,10 @@ World rules, are kept as written. The old canon is saved as `canon.prev.md`
 and the diff is printed. Canon sits in the system prompt, so it stays cached
 between dreams.
 
-Dreaming uses Haiku with medium effort by default (`[dream]` in
-`config.toml`). Set `provider = "gemini"` to dream with Gemini Flash instead.
+Dreaming uses Haiku with low effort by default (`[dream]` in
+`config.toml`). At medium effort Haiku's thinking used up all 16,000 output
+tokens on 20 turns. If a dream call still runs out of room, it is retried as
+two halves. Set `provider = "gemini"` to dream with Gemini Flash instead.
 
 ## Measuring whether memory helps
 
@@ -120,7 +122,7 @@ setups:
 
 | Setup | What the game master has |
 | --- | --- |
-| A. No memory | The recent-turns window only. No tools, notes or recall. |
+| A. Window + state sheet | The recent-turns window and the state sheet (flags, people, inventory). No tools, notes or recall. |
 | B. Notes | A, plus `remember`, `search_memory`, notes in the prompt and recall. |
 | C. Notes + dreaming | B, plus a dream every 20 turns. |
 
@@ -132,8 +134,11 @@ note ("Wren's sister is a sailor named Mara") is planted in B and C to see
 whether dreaming marks it wrong.
 
 The report goes to `evals/results/` as Markdown and JSON. The column that
-matters is **Quiz, out of view**: questions about facts whose turn had left
-the recent-turns window, so only memory could answer them. The report also
+matters is **Out of view, not on the sheet**: questions about facts whose turn
+had left the recent-turns window and that the game master hadn't written into
+a state flag, so only notes or dreaming could answer them. The state sheet is
+in every prompt, which is why setup A can still answer many out-of-view
+questions. The report also
 shows tokens per turn, dream tokens, tool use, the wrong note's final status
 and the wiki's size compared with the transcript. Each setup's campaign is
 kept under `evals/runs/` so you can read what happened. Before it runs, the

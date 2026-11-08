@@ -68,6 +68,9 @@ DREAM_SCHEMA = {
     "additionalProperties": False,
 }
 
+# A chunk that overflows the output limit is split in half, down to this many turns.
+MIN_SPLIT_TURNS = 3
+
 OWNED_SECTIONS = ("Story so far", "Open threads", "Cast", "Contradictions to keep straight")
 
 
@@ -87,6 +90,7 @@ class DreamResult:
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    splits: int = 0  # chunks split in half because the reply ran out of room
 
 
 # --- dream state -------------------------------------------------------------
@@ -158,18 +162,28 @@ def dream(campaign, llm: Budgeted, rules: str, config: dict, force: bool = False
     size = cfg["chunk_turns"]
     chunks = [turns[i:i + size] for i in range(0, len(turns), size)]
     # A note goes with the chunk holding its turn. Notes from older turns or from flags go with the last chunk.
-    chunk_of = {t["id"]: c for c, ch in enumerate(chunks) for t in ch}
-    for c, chunk in enumerate(chunks):
-        notes = [n for n in unchecked if chunk_of.get(n.turn, len(chunks) - 1) == c]
+    last_id = turns[-1]["id"]
+    turn_ids = {t["id"] for t in turns}
+    while chunks:
+        chunk = chunks.pop(0)
+        ids = {t["id"] for t in chunk}
+        is_last = chunk[-1]["id"] == last_id
+        notes = [n for n in unchecked if n.turn in ids or (is_last and n.turn not in turn_ids)]
         reply, given = _dream_chunk(campaign, llm, rules, cfg, chunk, notes, sections)
         result.calls += reply.calls
         result.input_tokens += reply.input_tokens
         result.output_tokens += reply.output_tokens
         if reply.stop_reason == "max_tokens":
+            if len(chunk) >= 2 * MIN_SPLIT_TURNS:
+                # Too much to do in one reply. Dream the two halves separately.
+                half = len(chunk) // 2
+                chunks[:0] = [chunk[:half], chunk[half:]]
+                result.splits += 1
+                continue
             raise DreamError(
                 f"The dream ran out of output room ({reply.output_tokens:,} tokens, most of it the model's "
-                f"thinking) before it finished. Nothing was changed for these turns. Raise dream.max_output_tokens "
-                f"(now {cfg['max_output_tokens']:,}) or lower dream.chunk_turns (now {cfg['chunk_turns']}).")
+                f"thinking) even on {len(chunk)} turns. Nothing was changed for these turns. Raise "
+                f"dream.max_output_tokens (now {cfg['max_output_tokens']:,}) or lower dream.effort (now {cfg['effort']}).")
         try:
             data = json.loads(reply.text)
         except json.JSONDecodeError as e:
@@ -182,6 +196,7 @@ def dream(campaign, llm: Budgeted, rules: str, config: dict, force: bool = False
         _write_canon(campaign, preamble, sections, cfg)
         state["last_dream"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         _state_path(campaign).write_text(json.dumps(state, indent=2))
+        unchecked = [n for n in unchecked if n.id not in {m.id for m in notes}]
 
     result.recap = state["recap"]
     canon_after = campaign.canon_path.read_text()
@@ -281,6 +296,8 @@ def make_dream_llm(config: dict, usage, override: str | None = None) -> Budgeted
 def format_dream(result: DreamResult) -> str:
     lines = [f"Dreamed over {result.turns} turns  "
              f"[{result.input_tokens:,} in / {result.output_tokens:,} out, {result.calls} call{'s' * (result.calls > 1)}]"]
+    if result.splits:
+        lines.append(f"Split {result.splits} chunk(s) in half because the reply ran out of room.")
     if result.new_pages:
         lines.append(f"New pages: {', '.join(result.new_pages)}")
     if result.updated_pages:

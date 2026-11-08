@@ -26,14 +26,15 @@ recall_hits = 3
 recall_chars = 400
 
 [dream]
-# Dreaming runs after play, so it can afford a little more thinking than narration.
+# Dreaming pulls facts out of turns, which needs little thinking. Thinking counts against max_output_tokens.
 provider = "claude"        # "claude" (Haiku) or "gemini"
-effort = "medium"          # Claude effort for dreaming
-thinking_level = "MEDIUM"  # Gemini thinking level for dreaming
+effort = "low"             # Claude effort for dreaming. Medium thought past 16k tokens on 20 turns.
+thinking_level = "LOW"     # Gemini thinking level for dreaming
 # Dream when you quit if at least this many turns are new. /dream ignores it.
 min_turns = 10
 on_quit = true
-# Turns per dream call. A long backlog is dreamed in several calls.
+# Turns per dream call. A long backlog is dreamed in several calls, and a call that
+# runs out of output room is retried as two halves.
 chunk_turns = 25
 # Haiku and Gemini think before answering, and thinking counts against this limit.
 max_output_tokens = 16000

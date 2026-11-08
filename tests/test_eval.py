@@ -88,3 +88,36 @@ def test_report_lists_every_setup(tmp_path):
     for s, label in SETUPS.items():
         assert f"| {s}. {label} |" in text
     assert "| Where did Wren grow up? |" in text and "B: the planted wrong note ended as **unverified**." in text
+
+
+def test_a_failed_dream_does_not_stop_setup_c(tmp_path):
+    class DreamsBadly(EchoProvider):
+        def complete(self, system, messages, max_tokens, meter, tools=None, tool_handler=None, schema=None, max_tool_rounds=3):
+            reply = super().complete(system, messages, max_tokens, meter, tools, tool_handler, schema, max_tool_rounds)
+            if schema not in (gm.ANSWER_SCHEMA, gm.REPLY_SCHEMA):
+                reply.text = "not json"
+            return reply
+
+    r = run(tmp_path, "C", DreamsBadly())
+    assert r.turns == 30 and not r.stopped and len(r.answers) == 2
+    assert len(r.dream_failures) == 2 and r.dream_failures[0].startswith("turn 15: ")
+
+
+def test_answers_on_the_state_sheet_are_marked(tmp_path):
+    provider = EchoProvider()
+    config = load_config(None)
+    script = small_script()
+    script["moves"][0] = "I tell Hobb I grew up in Saltmere."
+    original = provider.complete
+
+    def complete(system, messages, max_tokens, meter, schema=None, **kw):
+        reply = original(system, messages, max_tokens, meter, schema=schema, **kw)
+        if schema is gm.REPLY_SCHEMA and "Saltmere" in messages[-1].text:
+            reply.text = reply_json("Hobb nods.", set_flags=[{"name": "home", "value": "Saltmere"}])
+        return reply
+
+    provider.complete = complete
+    r = run_setup("A", script, tmp_path / "A", config, provider, None, 30, 10**7, log=lambda *a: None)
+    home = next(a for a in r.answers if a["id"] == "home")
+    assert home["in_state"] and home["correct"] and not home["in_view"]
+    assert r.accuracy(in_view=False, in_state=False) == (0, 0)
