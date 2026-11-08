@@ -111,27 +111,39 @@ def search(transcripts: Path, notes: NotesStore, query: str, limit: int = 6) -> 
 
 
 def _search_fts(docs: list[Hit], terms: list[str], limit: int) -> list[Hit]:
+    """Rank exact-phrase matches first, then turns with every word, then any word."""
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE VIRTUAL TABLE docs USING fts5(idx UNINDEXED, body, tokenize='porter')")
         db.executemany("INSERT INTO docs (idx, body) VALUES (?, ?)", [(i, d.text) for i, d in enumerate(docs)])
-        match = " OR ".join(f'"{t}"' for t in terms)
-        rows = db.execute(
-            "SELECT idx FROM docs WHERE docs MATCH ? ORDER BY bm25(docs) LIMIT ?", (match, limit)
-        ).fetchall()
+        quoted = [f'"{t}"' for t in terms]
+        queries = [" OR ".join(quoted)]
+        if len(terms) > 1:
+            queries = ['"' + " ".join(terms) + '"', " AND ".join(quoted)] + queries
+        found: list[int] = []
+        for match in queries:
+            rows = db.execute(
+                "SELECT idx FROM docs WHERE docs MATCH ? ORDER BY bm25(docs) LIMIT ?", (match, limit)
+            ).fetchall()
+            found += [int(r[0]) for r in rows if int(r[0]) not in found]
+            if len(found) >= limit:
+                break
     finally:
         db.close()
-    return [docs[int(r[0])] for r in rows]
+    return [docs[i] for i in found[:limit]]
 
 
 def _search_simple(docs: list[Hit], terms: list[str], limit: int) -> list[Hit]:
+    phrase = " ".join(terms)
     scored = []
     for i, d in enumerate(docs):
         words = re.findall(r"[a-z0-9']+", d.text.lower())
-        score = sum(words.count(t) for t in terms)
-        if score:
-            scored.append((-score, i))
-    return [docs[i] for _, i in sorted(scored)[:limit]]
+        present = [t for t in terms if t in words]
+        if not present:
+            continue
+        exact = len(terms) > 1 and phrase in " ".join(words)
+        scored.append((-exact, -len(present), -sum(words.count(t) for t in terms), i))
+    return [docs[s[-1]] for s in sorted(scored)[:limit]]
 
 
 def format_hits(hits: list[Hit], max_chars: int = 700) -> str:

@@ -229,3 +229,42 @@ def test_gemini_loop_runs_tools_then_answers():
     second_contents = sent[1][0]
     assert second_contents[-2].parts[0].function_call.name == "search_memory"  # model turn replayed
     assert second_contents[-1].parts[0].function_response.response == {"result": "found Mary"}
+
+
+# --- playtest fixes: short flags, phrase ranking ----------------------------
+
+LONG = "Hobb said livestock have vanished from the Greywood edge for three nights."
+
+
+def test_long_flags_become_notes(tmp_path):
+    campaign = Campaign(tmp_path / "camp")
+    provider = FakeProvider([reply_json("Hobb leans in.", set_flags=[
+        {"name": "room_rented", "value": "true"}, {"name": "hobb_gossip", "value": LONG}])])
+    game = Game(campaign, Budgeted(provider, campaign.usage, 100_000), "RULES", load_config(None))
+    turn = game.take_turn("I listen")
+    assert game.state["flags"] == {"room_rented": True}
+    note = campaign.notes.all()[0]
+    assert note.text == LONG and note.about == ("hobb gossip",) and note.turn == "s001-t0001"
+    assert turn.tool_calls[0]["from_flag"] == "hobb_gossip"
+
+
+def test_old_long_flags_move_to_notes_on_load(tmp_path):
+    campaign = Campaign(tmp_path / "camp")
+    state = json.loads(campaign.state_path.read_text())
+    state["flags"] = {"met_dask": True, "hobb_gossip": LONG}
+    campaign.state_path.write_text(json.dumps(state))
+    game = Game(campaign, Budgeted(FakeProvider([]), campaign.usage, 1), "RULES", load_config(None))
+    assert game.state["flags"] == {"met_dask": True}
+    assert json.loads(campaign.state_path.read_text())["flags"] == {"met_dask": True}
+    assert format_note(campaign.notes.all()[0]).startswith("[n0001, from flag hobb_gossip, unverified]")
+
+
+def test_exact_phrase_ranks_first(tmp_path):
+    t = Transcript(tmp_path / "transcripts")
+    t.append("I go to the inn", "It reminds you of a childhood song, Magic Lantern.", None)
+    t.append("I say it came by magic", "Magic is rare and costly, magic leaves marks. Magic.", None)
+    t.append("I light a lantern", "The lantern sputters.", None)
+    hits = search(tmp_path / "transcripts", NotesStore(tmp_path / "notes"), "magic lantern")
+    assert [h.id for h in hits] == ["s001-t0001", "s001-t0002", "s001-t0003"]
+    docs = [Hit("a", "turn", "magic magic magic"), Hit("b", "turn", "the magic lantern"), Hit("c", "turn", "a lantern")]
+    assert [h.id for h in _search_simple(docs, ["magic", "lantern"], 5)][0] == "b"

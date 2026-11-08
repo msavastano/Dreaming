@@ -23,6 +23,7 @@ from .transcript import Transcript, load_window
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = Path(__file__).resolve().parent / "templates"
+MAX_FLAG_CHARS = 60  # longer flag values are facts, so they go to notes instead
 
 
 class Campaign:
@@ -47,9 +48,34 @@ class Game:
         self.llm = llm
         self.config = config
         self.state = load_state(campaign.state_path)
+        self._move_long_flags_to_notes()
         self.system = gm.build_system(rules, campaign.canon_path.read_text())
         self.transcript = Transcript(campaign.transcripts)
         self.last_reply: Reply | None = None
+
+    def _move_long_flags_to_notes(self) -> None:
+        """Campaigns from before flags were kept short: move long flags into notes once."""
+        flags = self.state.get("flags", {})
+        long = {k: v for k, v in flags.items() if _is_long_flag(v)}
+        if not long:
+            return
+        for name, value in long.items():
+            self.campaign.notes.add(value, [_flag_topic(name)], turn=f"flag {name}")
+            del flags[name]
+        save_state(self.campaign.state_path, self.state)
+
+    def _notes_from_flags(self, changes: dict, turn_id: str) -> list[dict]:
+        """Take long flag values out of a state change and save them as notes."""
+        flags = changes.get("set_flags") or {}
+        calls = []
+        for name in [k for k, v in flags.items() if _is_long_flag(v)]:
+            value = flags.pop(name)
+            note = self.campaign.notes.add(value, [_flag_topic(name)], turn=turn_id)
+            calls.append({"name": "remember", "args": {"fact": value, "about": [_flag_topic(name)]},
+                          "result": f"Saved as {note.id}.", "from_flag": name})
+        if not flags:
+            changes.pop("set_flags", None)
+        return calls
 
     def run_tool(self, name: str, args: dict) -> str:
         if name == "remember":
@@ -81,12 +107,22 @@ class Game:
         )
         self.last_reply = reply
         turn = gm.parse_reply(reply.text)
-        turn.tool_calls = reply.tool_calls
+        turn.tool_calls = list(reply.tool_calls)
+        if turn.state_change:
+            turn.tool_calls += self._notes_from_flags(turn.state_change, self.transcript.next_id())
         if turn.state_change:
             self.state = apply_changes(self.state, turn.state_change)
             save_state(self.campaign.state_path, self.state)
-        self.transcript.append(move, turn.narration, turn.state_change, reply.tool_calls)
+        self.transcript.append(move, turn.narration, turn.state_change, turn.tool_calls)
         return turn
+
+
+def _is_long_flag(value) -> bool:
+    return isinstance(value, str) and len(value) > MAX_FLAG_CHARS
+
+
+def _flag_topic(name: str) -> str:
+    return name.replace("_", " ").strip()
 
 
 def format_state(state: dict) -> str:

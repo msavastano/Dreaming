@@ -55,6 +55,14 @@ The latest notes (40 by default, `narration.notes_in_prompt`) go into every
 prompt, so the game master sees them without searching. A turn that uses a
 tool makes an extra model call, shown as `2 calls` in the token line. Each turn
 allows at most 3 tool rounds (`narration.max_tool_rounds`).
+
+Flags in the state are short switches like `room_rented`. If the game master
+writes a flag longer than 60 characters, the game saves it as a note instead,
+because the state goes into every prompt uncached. Older campaigns with long
+flags have them moved to notes the next time they load.
+
+Search ranks the exact phrase first, then turns with every word, then turns
+with any word.
 Use `--campaign <name>` to keep more than one campaign.
 
 ## Where things live
