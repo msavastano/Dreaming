@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+.env
+# Your campaigns hold your play history; keep them out of git.
+campaigns/
