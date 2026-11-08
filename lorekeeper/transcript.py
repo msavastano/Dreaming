@@ -21,15 +21,21 @@ class Transcript:
         self.path = self.folder / f"s{self.session:03d}.jsonl"
         self.turn = 0
 
-    def append(self, player: str, narration: str, state_change: dict | None) -> dict:
-        self.turn += 1
+    def next_id(self) -> str:
+        """The id the next appended turn will get."""
+        return f"s{self.session:03d}-t{self.turn + 1:04d}"
+
+    def append(self, player: str, narration: str, state_change: dict | None, tool_calls: list[dict] | None = None) -> dict:
         record = {
-            "id": f"s{self.session:03d}-t{self.turn:04d}",
+            "id": self.next_id(),
             "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "player": player,
             "narration": narration,
             "state_change": state_change or {},
         }
+        if tool_calls:
+            record["tools"] = tool_calls
+        self.turn += 1
         with self.path.open("a") as f:
             f.write(json.dumps(record) + "\n")
         return record

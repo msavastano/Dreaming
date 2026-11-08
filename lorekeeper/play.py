@@ -4,7 +4,7 @@
     python -m lorekeeper.play --campaign quest2  # a second campaign
     python -m lorekeeper.play --provider claude  # narrate with Haiku instead
 
-In-game commands: /state, /usage, /quit
+In-game commands: /state, /notes, /search <words>, /usage, /quit
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from pathlib import Path
 
 from . import gm
 from .config import load_config
-from .llm import Budgeted, BudgetExceeded, UsageLog, make_provider
-from .llm import Reply
+from .llm import Budgeted, BudgetExceeded, Reply, UsageLog, make_provider
+from .memory import NotesStore, format_hits, format_note, search
 from .state import apply_changes, format_money, load_state, save_state
 from .transcript import Transcript, load_window
 
@@ -26,7 +26,7 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 
 
 class Campaign:
-    """A campaign is one folder: canon.md, state.json, transcripts/, usage.jsonl."""
+    """A campaign is one folder: canon.md, state.json, transcripts/, notes/, usage.jsonl."""
 
     def __init__(self, folder: Path):
         self.folder = folder
@@ -38,6 +38,7 @@ class Campaign:
         self.state_path = folder / "state.json"
         self.transcripts = folder / "transcripts"
         self.usage = UsageLog(folder / "usage.jsonl")
+        self.notes = NotesStore(folder / "notes")
 
 
 class Game:
@@ -50,17 +51,41 @@ class Game:
         self.transcript = Transcript(campaign.transcripts)
         self.last_reply: Reply | None = None
 
+    def run_tool(self, name: str, args: dict) -> str:
+        if name == "remember":
+            fact = str(args.get("fact", "")).strip()
+            if not fact:
+                return "Nothing saved: the fact was empty."
+            about = [str(a) for a in args.get("about", []) if isinstance(a, str)]
+            note = self.campaign.notes.add(fact, about, turn=self.transcript.next_id())
+            return f"Saved as {note.id}."
+        if name == "search_memory":
+            hits = search(self.campaign.transcripts, self.campaign.notes, str(args.get("query", "")))
+            return format_hits(hits)
+        return f"Unknown tool {name!r}."
+
     def take_turn(self, move: str) -> gm.Turn:
-        narration = self.config["narration"]
-        recent = load_window(self.campaign.transcripts, narration["window_turns"], narration["window_step"])
-        messages = gm.build_messages(recent, self.state, move)
-        reply = self.llm.complete(self.system, messages, narration["max_output_tokens"], purpose="narrate")
+        cfg = self.config["narration"]
+        recent = load_window(self.campaign.transcripts, cfg["window_turns"], cfg["window_step"])
+        notes = [format_note(n) for n in self.campaign.notes.all()[-cfg["notes_in_prompt"]:]]
+        messages = gm.build_messages(recent, self.state, move, notes)
+        reply = self.llm.complete(
+            self.system,
+            messages,
+            cfg["max_output_tokens"],
+            purpose="narrate",
+            tools=gm.TOOLS,
+            tool_handler=self.run_tool,
+            schema=gm.REPLY_SCHEMA,
+            max_tool_rounds=cfg["max_tool_rounds"],
+        )
         self.last_reply = reply
         turn = gm.parse_reply(reply.text)
+        turn.tool_calls = reply.tool_calls
         if turn.state_change:
             self.state = apply_changes(self.state, turn.state_change)
             save_state(self.campaign.state_path, self.state)
-        self.transcript.append(move, turn.narration, turn.state_change)
+        self.transcript.append(move, turn.narration, turn.state_change, reply.tool_calls)
         return turn
 
 
@@ -82,7 +107,18 @@ def format_state(state: dict) -> str:
 def format_turn_tokens(reply: Reply | None) -> str:
     if reply is None:
         return ""
-    return f"[{reply.input_tokens:,} in ({reply.cached_tokens:,} cached) / {reply.output_tokens:,} out]"
+    calls = f", {reply.calls} calls" if reply.calls > 1 else ""
+    return f"[{reply.input_tokens:,} in ({reply.cached_tokens:,} cached) / {reply.output_tokens:,} out{calls}]"
+
+
+def format_tool_calls(calls: list[dict]) -> list[str]:
+    lines = []
+    for call in calls:
+        if call["name"] == "remember":
+            lines.append(f"  remembered: {call['args'].get('fact', '')}")
+        elif call["name"] == "search_memory":
+            lines.append(f"  searched memory for: {call['args'].get('query', '')}")
+    return lines
 
 
 def format_usage(usage: UsageLog) -> str:
@@ -116,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     game = Game(campaign, llm, gm.load_rules(ROOT / "prompts"), config)
 
     print(f"Lorekeeper. Campaign '{args.campaign}', session {game.transcript.session}.")
-    print("Commands: /state  /usage  /quit\n")
+    print("Commands: /state  /notes  /search <words>  /usage  /quit\n")
     print(format_state(game.state), "\n")
 
     while True:
@@ -132,6 +168,14 @@ def main(argv: list[str] | None = None) -> int:
         if move == "/state":
             print(format_state(game.state), "\n")
             continue
+        if move == "/notes":
+            notes = campaign.notes.all()
+            print("\n".join(format_note(n) for n in notes) if notes else "No notes yet.", "\n")
+            continue
+        if move.startswith("/search"):
+            query = move[len("/search"):].strip()
+            print(format_hits(search(campaign.transcripts, campaign.notes, query)) if query else "Usage: /search <words>", "\n")
+            continue
         if move == "/usage":
             print(format_usage(campaign.usage), "\n")
             continue
@@ -141,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
             print(e)
             break
         print(f"\n{turn.narration}\n")
+        for line in format_tool_calls(turn.tool_calls):
+            print(line)
         notes = [format_turn_tokens(game.last_reply)]
         if turn.parse_error:
             notes.append(f"state not updated: {turn.parse_error}")
