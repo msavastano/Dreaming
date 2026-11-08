@@ -5,7 +5,7 @@ import pytest
 
 from lorekeeper import gm
 from lorekeeper.config import load_config
-from lorekeeper.llm import Budgeted, BudgetExceeded, Message, Reply, UsageLog
+from lorekeeper.llm import Budgeted, BudgetExceeded, Message, Reply, Usage, UsageLog
 from lorekeeper.play import Campaign, Game, ROOT
 from lorekeeper.llm import ClaudeProvider
 from lorekeeper.play import format_state
@@ -23,15 +23,35 @@ BASE_STATE = {
 
 
 class FakeProvider:
+    """Plays back scripted replies. A step is either final text, or a list of
+    (tool name, args) calls to make before the next step."""
+
     name = "fake"
 
-    def __init__(self, replies):
-        self.replies = list(replies)
+    def __init__(self, steps):
+        self.steps = list(steps)
         self.calls = []
 
-    def complete(self, system, messages, max_tokens):
+    def complete(self, system, messages, max_tokens, meter, tools=None, tool_handler=None, schema=None, max_tool_rounds=3):
         self.calls.append((system, messages))
-        return Reply(text=self.replies.pop(0), model="fake-1", input_tokens=100, output_tokens=50)
+        tool_log, calls = [], 0
+        while True:
+            meter.before_call()
+            meter.after_call("fake-1", Usage(100, 50, 0))
+            calls += 1
+            step = self.steps.pop(0)
+            if isinstance(step, str):
+                return Reply(text=step, model="fake-1", input_tokens=100 * calls, output_tokens=50 * calls,
+                             calls=calls, tool_calls=tool_log)
+            for name, args in step:
+                tool_log.append({"name": name, "args": args, "result": tool_handler(name, args)})
+
+
+def reply_json(narration, **state):
+    full = {"location": "", "copper_delta": 0, "hp_delta": 0, "add_items": [], "remove_items": [],
+            "stash": [], "retrieve": [], "set_flags": []}
+    full.update(state)
+    return json.dumps({"narration": narration, "state": full})
 
 
 # --- state -----------------------------------------------------------------
@@ -107,7 +127,7 @@ def test_transcript_ids_and_sessions(tmp_path):
 
 def test_budget_blocks_calls_over_the_cap(tmp_path):
     usage = UsageLog(tmp_path / "usage.jsonl")
-    llm = Budgeted(FakeProvider(["one", "two"]), usage, daily_cap=150)
+    llm = Budgeted(FakeProvider(["one", "two"]), usage, daily_cap=150)  # each call logs 150 tokens
     llm.complete("s", [Message("user", "hi")], 10, purpose="narrate")
     assert usage.tokens_today() == 150
     with pytest.raises(BudgetExceeded):
@@ -121,8 +141,8 @@ def test_game_turn_updates_state_and_transcript(tmp_path):
     campaign = Campaign(tmp_path / "camp")
     assert (campaign.folder / "canon.md").exists()  # created from the template
     provider = FakeProvider([
-        'Hobb waves you in.\n```state\n{"location": "The Crooked Lantern", "copper_delta": -2}\n```',
-        "The fire crackles.\n```state\n{}\n```",
+        reply_json("Hobb waves you in.", location="The Crooked Lantern", copper_delta=-2),
+        reply_json("The fire crackles."),
     ])
     config = load_config(None)
     game = Game(campaign, Budgeted(provider, campaign.usage, 10_000), "RULES", config)
@@ -151,7 +171,7 @@ def test_repo_config_and_prompt_load():
     config = load_config(ROOT / "config.toml")
     assert config["gemini"]["model"] == "gemini-3.8-flash"
     assert config["claude"]["model"] == "claude-haiku-5-5"
-    assert "```state" in gm.load_rules(ROOT / "prompts")
+    assert "search_memory" in gm.load_rules(ROOT / "prompts")
 
 
 # --- money and stored items ------------------------------------------------
@@ -211,6 +231,7 @@ def test_claude_marks_end_of_history_for_caching():
     assert ClaudeProvider._with_history_cache([Message("user", "only")])[0]["content"] == "only"
 
 
-def test_prompt_requires_state_block_every_turn():
+def test_prompt_explains_state_and_memory():
     rules = gm.load_rules(ROOT / "prompts")
-    assert "End every reply" in rules and "copper_delta" in rules and "stash" in rules
+    for word in ("narration", "stash", "retrieve", "set_flags", "remember", "search_memory", "<notes>"):
+        assert word in rules

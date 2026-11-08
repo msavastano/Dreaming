@@ -4,14 +4,26 @@
 [narration]
 # Which provider narrates each turn: "gemini" (default, cheapest) or "claude".
 provider = "gemini"
-max_output_tokens = 1200
-# At most this many recent turns go into each prompt. Older turns are left out
-# (milestone 2 adds search so the game master can look them up).
+max_output_tokens = 2000
+# At most this many recent turns go into each prompt. Older turns are found
+# by search and recall instead.
 window_turns = 20
 # The oldest shown turn moves forward this many turns at a time, so the start
 # of the prompt stays the same for a while and caching can reuse it.
 # The game master sees between (window_turns - window_step) and window_turns turns.
 window_step = 10
+# How many rounds of tool calls (remember, search_memory) the game master may
+# make in one turn before it must answer. Each round is one more model call.
+max_tool_rounds = 3
+# How many of the most recent notes go into every prompt. Older notes are
+# still found by search_memory.
+notes_in_prompt = 40
+# Before each turn the game searches notes and old turns for the player's words
+# (locally, no API call) and adds up to this many matches to the prompt, so the
+# game master sees old details without having to search. 0 turns it off.
+recall_hits = 3
+# Each recalled match is cut to this many characters to keep the prompt small.
+recall_chars = 400
 
 [gemini]
 model = "gemini-3.8-flash"
