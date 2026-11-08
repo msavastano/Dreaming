@@ -201,3 +201,17 @@ def test_the_heros_facts_go_into_canon(tmp_path):
     canon = campaign.canon_path.read_text()
     assert "## The hero\nWhat the player has said about Wren Ashby. Keep it true.\n" in canon
     assert "- Wren is afraid of deep water because her father drowned." in canon
+
+
+def test_facts_about_the_hero_on_other_pages_reach_canon(tmp_path):
+    secret = ("I tell Tam I once worked for the Guild of Finders.", "Tam promises to keep quiet.")
+    wren = {"name": "Wren", "kind": "person", "aliases": [], "summary": "The hero.", "facts": [], "contradictions": []}
+    tam = tam_page(facts=[{"text": "Wren told Tam she once worked for the Guild of Finders.", "turn": "s001-t0001",
+                           "quote": "I once worked for the Guild of Finders"}])
+    campaign, provider, llm, config = setup(tmp_path, turns=(secret,), steps=[dream_json(pages=[wren, tam])])
+    campaign.wiki.save(Page("Wren", "person", "The hero.", [], [Fact("Wren grew up in Saltmere.", "s000-t0002", "")]))
+    dream(campaign, llm, "R", config, force=True)
+    canon = campaign.canon_path.read_text()
+    hero = canon.split("## The hero")[1].split("##")[0]
+    assert "- Wren grew up in Saltmere." in hero and "- Wren told Tam she once worked for the Guild of Finders." in hero
+    assert "Tam is a freckled boy" not in hero

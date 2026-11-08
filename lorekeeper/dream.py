@@ -278,9 +278,10 @@ def _write_canon(campaign, preamble: str, sections, cfg) -> None:
     pages = sorted(campaign.wiki.all(), key=lambda p: p.updated, reverse=True)[:cfg["cast_limit"]]
     cast = sorted(pages, key=lambda p: (KINDS.index(p.kind) if p.kind in KINDS else 9, p.name.lower()))
     hero = _hero_page(campaign)
-    if hero and hero.facts:
+    facts = _hero_facts(campaign, hero) if hero else []
+    if facts:
         _set_section(sections, "The hero", f"What the player has said about {hero.name}. Keep it true.\n"
-                     + "\n".join(f"- {f.text}" for f in hero.facts[-HERO_FACTS:]))
+                     + "\n".join(f"- {f.text}" for f in facts))
     if cast:
         _set_section(sections, "Cast", "Everyone and everything met so far. Keep them consistent with this.\n"
                      + "\n".join(p.cast_line() for p in cast))
@@ -288,6 +289,22 @@ def _write_canon(campaign, preamble: str, sections, cfg) -> None:
     if contradictions:
         _set_section(sections, "Contradictions to keep straight", "\n".join(contradictions))
     campaign.canon_path.write_text(join_canon(preamble, sections))
+
+
+def _hero_facts(campaign, hero: Page) -> list[Fact]:
+    """The hero's own facts, plus facts on other pages that name the hero. The dream sometimes
+    files "Wren told Tam she worked for the Guild" on Tam's page, where only a summary reaches play."""
+    facts = list(hero.facts)
+    seen = {_norm(f.text) for f in facts}
+    for page in campaign.wiki.all():
+        if page.slug == hero.slug:
+            continue
+        for f in page.facts:
+            if hero.mentioned_in(f.text) and _norm(f.text) not in seen:
+                seen.add(_norm(f.text))
+                facts.append(f)
+    facts.sort(key=lambda f: f.turn)  # oldest first; turn ids sort in order
+    return facts[-HERO_FACTS:]
 
 
 def _hero_page(campaign) -> Page | None:
