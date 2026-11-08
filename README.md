@@ -28,6 +28,24 @@ export ANTHROPIC_API_KEY=...
 python -m lorekeeper.play --provider claude
 ```
 
+### In your browser
+
+```bash
+python -m lorekeeper.web --provider claude     # opens http://127.0.0.1:8765
+```
+
+The same game, in a page: the story on the left and the hero's state sheet,
+notes, wiki, canon and search on the right. Under each turn you can see what
+memory did: turns recalled for it, facts the game master remembered, and
+searches it ran. Turns that have left the game master's recent window are
+faded. **Dream** folds new turns into the wiki and canon, and its badge
+counts the turns not dreamed yet. Typing `/dream` or `/search <words>` in the
+move box works too. Press Ctrl+C in the terminal to stop; like the terminal
+game, it dreams on the way out once enough turns are new. The server only
+listens on your own computer. Options: `--campaign`, `--port`, `--no-browser`.
+
+### In the terminal
+
 In the game, type what your hero does. Commands:
 
 | Command | What it does |
