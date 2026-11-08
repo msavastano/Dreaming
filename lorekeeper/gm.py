@@ -2,7 +2,7 @@
 
 Prompt layout, ordered so the start stays the same turn to turn (cache-friendly):
   system   = GM rules + canon.md          (stable)
-  messages = the last N turns              (grows by one turn each move)
+  messages = recent turns                  (start moves in steps, see transcript.window_start)
   last msg = current state + player move   (changes every turn)
 """
 
@@ -47,7 +47,7 @@ def parse_reply(text: str) -> Turn:
     matches = list(STATE_BLOCK.finditer(text))
     narration = STATE_BLOCK.sub("", text).strip()
     if not matches:
-        return Turn(narration=narration, state_change=None)
+        return Turn(narration=narration, state_change=None, parse_error="no state block")
     raw = matches[-1].group(1).strip()
     try:
         change = json.loads(raw)

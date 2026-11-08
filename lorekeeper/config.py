@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 DEFAULTS: dict = {
-    "narration": {"provider": "gemini", "max_output_tokens": 1200, "window_turns": 20},
+    "narration": {"provider": "gemini", "max_output_tokens": 1200, "window_turns": 20, "window_step": 10},
     "gemini": {"model": "gemini-3.8-flash", "thinking_level": "LOW"},
     "claude": {"model": "claude-haiku-5-5", "effort": "low"},
     "budget": {"daily_token_cap": 300_000},

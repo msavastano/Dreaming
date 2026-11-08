@@ -5,9 +5,13 @@
 # Which provider narrates each turn: "gemini" (default, cheapest) or "claude".
 provider = "gemini"
 max_output_tokens = 1200
-# How many recent turns go into each prompt. Older turns are left out
+# At most this many recent turns go into each prompt. Older turns are left out
 # (milestone 2 adds search so the game master can look them up).
 window_turns = 20
+# The oldest shown turn moves forward this many turns at a time, so the start
+# of the prompt stays the same for a while and caching can reuse it.
+# The game master sees between (window_turns - window_step) and window_turns turns.
+window_step = 10
 
 [gemini]
 model = "gemini-3.8-flash"
