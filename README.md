@@ -146,6 +146,33 @@ kept under `evals/runs/` so you can read what happened. Before it runs, the
 eval prints a rough token estimate and asks you to confirm; `--max-tokens`
 caps each setup (2,000,000 by default).
 
+### The harder script
+
+```bash
+python -m lorekeeper.eval --provider claude --script evals/thornwick-120.json
+```
+
+`evals/thornwick-120.json` is 120 moves and is built to be harder to game:
+
+- **Questions avoid the planted turn's words.** "Why does Wren stay away from
+  rivers and lakes?" shares nothing with "I'm afraid of deep water because my
+  father drowned", so word-matching recall can't find the answer by itself.
+- **Other people.** The player sets details about others, such as Tam being
+  about twelve, Garra's burnt hand and Maren being blind, so every setup has
+  the same answer key.
+- **Facts that change.** The debt drops from three silver to two, Wren moves
+  from the inn to Maren's loft, and the mule Pebble is sold for a pony named
+  Ember. The quiz expects the latest version.
+- **Two wrong notes.** "Wren grew up in Ashford" and "Tam is a grey-bearded
+  fisherman in his forties". Some answers fail if they repeat a wrong note.
+- **In-play probes.** Ten ordinary moves late in the game, like "I ask Tam how
+  old he is" or "I saddle my mount", are graded on the narration itself. They
+  check that the game master uses what it knows during play, not only when
+  quizzed.
+
+The report adds accuracy by kind of fact and a table of the probes. Quizzes
+run after turns 40, 80 and 120.
+
 ## Where things live
 
 Each campaign is a folder under `campaigns/` (ignored by git):

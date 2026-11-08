@@ -2,7 +2,7 @@ import json
 
 from lorekeeper import gm
 from lorekeeper.config import load_config
-from lorekeeper.eval import SETUPS, grade, report, run_setup
+from lorekeeper.eval import SETUPS, current, grade, report, run_setup
 from lorekeeper.llm import Budgeted, Reply, Usage
 from lorekeeper.play import ROOT
 
@@ -62,7 +62,7 @@ def test_setup_a_has_no_memory_and_forgets(tmp_path):
     home = next(a for a in r.answers if a["id"] == "home")
     assert not home["in_view"] and not home["correct"]          # turn 1 has left the window
     assert next(a for a in r.answers if a["id"] == "magic")["correct"]  # canon is always there
-    assert r.notes == 0 and r.wrong_note_status == ""
+    assert r.notes == 0 and r.wrong_note_status == {}
     assert r.usage["narrate"]["calls"] == 30 and r.usage["quiz"]["calls"] == 2 and "dream" not in r.usage
 
 
@@ -72,7 +72,7 @@ def test_setup_b_plants_the_wrong_note_and_uses_tools(tmp_path):
     assert "remember" in provider.calls[0]["tools"]
     quiz_calls = [c for c in provider.calls if c["schema"] is gm.ANSWER_SCHEMA]
     assert all(c["tools"] == ["search_memory"] for c in quiz_calls)   # no new notes during a quiz
-    assert r.wrong_note_status == "unverified" and r.notes == 1
+    assert r.wrong_note_status == {"Wren grew up in Ashford.": "unverified"} and r.notes == 1
     assert "Wren grew up in Ashford." in quiz_calls[0]["last"]          # the wrong note is in the prompt
 
 
@@ -87,7 +87,7 @@ def test_report_lists_every_setup(tmp_path):
     text = report(results, small_script(), {"when": "now", "provider": "fake", "dream_provider": "fake", "turns": 30})
     for s, label in SETUPS.items():
         assert f"| {s}. {label} |" in text
-    assert "| Where did Wren grow up? |" in text and "B: the planted wrong note ended as **unverified**." in text
+    assert "| Where did Wren grow up? |" in text and 'B: the planted wrong note "Wren grew up in Ashford." ended as **unverified**.' in text
 
 
 def test_a_failed_dream_does_not_stop_setup_c(tmp_path):
@@ -121,3 +121,61 @@ def test_answers_on_the_state_sheet_are_marked(tmp_path):
     home = next(a for a in r.answers if a["id"] == "home")
     assert home["in_state"] and home["correct"] and not home["in_view"]
     assert r.accuracy(in_view=False, in_state=False) == (0, 0)
+
+
+def test_grade_forbids_whole_words():
+    assert not grade("Tam is a fisherman of forty.", [["tam"]], forbid=["forty"])
+    assert grade("Tam is twelve, not a man of fortyish years.", [["twelve"]], forbid=["forty"])
+
+
+def test_changed_facts_use_the_latest_answer():
+    item = {"planted": 5, "needs": [["three silver"]], "changes": [{"at": 52, "needs": [["two silver"]]}]}
+    assert current(item, 40) == (5, [["three silver"]], [])
+    assert current(item, 80) == (52, [["two silver"]], [])
+
+
+def harder_script():
+    script = small_script()
+    script["moves"][5] = "I sell my mule and buy a pony named Ember."
+    script["key"] = [
+        {"id": "home", "kind": "hero", "planted": 1, "q": "Where did Wren grow up?", "needs": [["saltmere"]]},
+        {"id": "mount", "kind": "changed", "planted": 1, "q": "What does Wren ride?", "needs": [["mule"]],
+         "changes": [{"at": 6, "needs": [["ember"]]}]},
+    ]
+    script["probes"] = [{"id": "mount", "turn": 20, "planted": 6, "needs": [["ember"]], "forbid": ["quiet"]},
+                        {"id": "home", "turn": 25, "planted": 1, "needs": [["quiet"]]}]
+    del script["wrong_note"]
+    script["wrong_notes"] = [{"after": 1, "text": "Wren grew up in Ashford.", "about": ["Wren"]},
+                             {"after": 2, "text": "Tam is forty.", "about": ["Tam"]}]
+    return script
+
+
+def test_probes_kinds_and_several_wrong_notes(tmp_path):
+    config = load_config(None)
+    script = harder_script()
+    r = run_setup("B", script, tmp_path / "B", config, EchoProvider(), None, 30, 10**7, log=lambda *a: None)
+    # EchoProvider narrates "The village is quiet." every turn.
+    assert [(p["turn"], p["correct"], p["in_view"]) for p in r.probes] == [(20, False, True), (25, True, False)]
+    mount = next(a for a in r.answers if a["id"] == "mount")
+    assert mount["kind"] == "changed" and mount["in_view"] is False  # the change at turn 6 is out of view at 30
+    assert r.wrong_note_status == {"Wren grew up in Ashford.": "unverified", "Tam is forty.": "unverified"}
+    text = report([r], script, {"when": "now", "provider": "fake", "dream_provider": "fake", "turns": 30})
+    assert "## By kind of fact" in text and "| Facts that changed |" in text
+    assert "## In-play probes" in text and "| 25 | I wait 23. | yes* |" in text
+
+
+def test_scripts_are_well_formed(tmp_path):
+    for path in sorted((ROOT / "evals").glob("*.json")):
+        script = json.loads(path.read_text())
+        n = len(script["moves"])
+        assert all(q <= n for q in script["quiz_after"]), path
+        for item in script["key"]:
+            assert 0 <= item["planted"] <= n and all(item["planted"] < c["at"] <= n for c in item.get("changes", []))
+        for probe in script.get("probes", []):
+            assert 0 < probe["planted"] < probe["turn"] <= n, (path, probe)
+    # The long script runs end to end.
+    script = json.loads((ROOT / "evals" / "thornwick-120.json").read_text())
+    r = run_setup("C", script, tmp_path / "C", load_config(None), EchoProvider(),
+                  lambda cfg, usage: Budgeted(EchoProvider(), usage, 10**8), 120, 10**8, log=lambda *a: None)
+    assert r.turns == 120 and not r.stopped and len(r.probes) == 10 and len(r.wrong_note_status) == 2
+    assert len(r.answers) == 3 * len(script["key"])

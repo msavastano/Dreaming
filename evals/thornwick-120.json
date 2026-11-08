@@ -1,0 +1,530 @@
+{
+ "name": "thornwick-120",
+ "about": "120 moves. Quiz questions avoid the planted turn's words, some facts change later, details about other people come from the player, two wrong notes are planted, and ten in-play probes check the narration itself.",
+ "quiz_after": [
+  40,
+  80,
+  120
+ ],
+ "dream_every": 20,
+ "wrong_notes": [
+  {
+   "after": 2,
+   "text": "Wren grew up in Ashford, far from the sea.",
+   "about": [
+    "Wren"
+   ]
+  },
+  {
+   "after": 13,
+   "text": "Tam the stable boy is a grey-bearded fisherman in his forties.",
+   "about": [
+    "Tam"
+   ]
+  }
+ ],
+ "moves": [
+  "I arrive at the village gate at dusk and look around.",
+  "I go into the Crooked Lantern and tell Hobb I grew up in Saltmere, a fishing town on the coast.",
+  "I tell Hobb my sister Ilsa is an apprentice healer in Ashford, and I miss her.",
+  "I ask Hobb for a room for the night.",
+  "Hobb lends me three silver when I come up short. I promise to repay him by the next full moon.",
+  "I eat a bowl of stew and listen to the farmers talk.",
+  "In the morning I visit the smithy. The smith is a broad woman named Garra with a burn scar across her left hand. I promise to bring her a wolf pelt from the Greywood.",
+  "I ask Garra what she knows about the missing livestock.",
+  "I find Elder Maren, who is blind and reads letters by tracing the wax and ink with her fingers. I give her the sealed letter.",
+  "I tell Maren I'm afraid of deep water because my father drowned when I was small.",
+  "I buy a grey mule at the stable and name her Pebble.",
+  "I ride Pebble to the edge of the fields and look toward the Greywood.",
+  "I meet the stable boy, a freckled lad of about twelve called Tam, and ask him about the woods.",
+  "I tell Tam a secret: I once worked for the Ashford Guild of Finders, and he must tell no one.",
+  "I head back to the inn for supper.",
+  "I agree to meet Garra at the old mill at dawn in three days.",
+  "I sleep.",
+  "Over breakfast I tell Hobb about Mary, my beloved, who waits for me in Saltmere.",
+  "I walk to the well and draw water.",
+  "I ask a villager whether anyone here can cast spells.",
+  "I go to the chapel and look around.",
+  "I show Maren my lucky charm, a blue glass bead my mother gave me. She turns it over in her fingers.",
+  "I help a farmer mend a broken fence.",
+  "I lend Tam five copper, and he swears to repay me in fish.",
+  "I ask Hobb what gossip he has today.",
+  "I follow the north road a short way to see the flood damage.",
+  "I turn back before dark and return to the inn.",
+  "A travelling tinker named Oswin, who has one silver glass eye, takes the room next to mine. I trade him a copper for a needle.",
+  "I ask Oswin where he is headed.",
+  "I go to bed early.",
+  "At dawn I go to the old mill as I agreed and meet Garra.",
+  "I ask Garra what she has seen near the Greywood.",
+  "I walk along the millstream looking for tracks.",
+  "I follow the tracks toward the trees.",
+  "I stop at the treeline and listen.",
+  "I go back to the village and report what I found to Maren.",
+  "Tam tells me Garra is his aunt, and that she took him in when his parents died.",
+  "I rest by the hearth at the inn.",
+  "I play a game of dice with the farmers.",
+  "I buy bread and cheese for the road.",
+  "Oswin packs his cart and leaves Thornwick heading south. I wave him off.",
+  "I sharpen my sword in the yard.",
+  "I take Pebble for a walk around the village green.",
+  "I watch the sunset from the chapel steps.",
+  "I sleep.",
+  "In the morning I ask Tam if he has heard anything new.",
+  "I visit the smithy and watch Garra work.",
+  "I walk the fence line at the edge of the Brandt pasture.",
+  "I look for signs of what took the sheep.",
+  "I head back toward the inn as the light fades.",
+  "I eat supper and listen for news.",
+  "I pay Hobb one silver of what I owe him. He marks it on his slate.",
+  "I go up to my room and rest.",
+  "I wake at midnight to a noise outside and look out the window.",
+  "I go back to sleep.",
+  "At breakfast I ask Hobb what he plans for the harvest festival.",
+  "I walk to Maren's house to see if she needs help.",
+  "Maren offers me her spare loft so I can stop paying for the inn. I accept and move my things there.",
+  "I unpack in Maren's loft and look out over the village.",
+  "I help Maren sort dried herbs.",
+  "I ask Maren what the sealed letter said, now that she has had time to think.",
+  "I go to the stable and brush Pebble.",
+  "I ask Tam to teach me a fishing knot.",
+  "I walk along the millstream at noon.",
+  "I visit the chapel and light a candle for my father.",
+  "I buy a hot pie at the market.",
+  "I sit on the village green and watch children play.",
+  "I check the Brandt pasture for new tracks.",
+  "I find a torn scrap of grey cloth on the fence and pocket it.",
+  "I show the scrap of cloth to Garra.",
+  "I ask Hobb whether anyone in the village wears cloth like this.",
+  "I return to the loft and sleep.",
+  "In the morning I sell Pebble to the Brandt family, who need a mule for the harvest.",
+  "With the money I buy a chestnut pony and name him Ember.",
+  "I ride Ember around the fields to get used to him.",
+  "I walk Ember back to the stable and give him an apple.",
+  "I ask Tam to take good care of Ember.",
+  "I eat supper with Maren.",
+  "I mend a tear in my cloak.",
+  "I go to sleep in the loft.",
+  "I wake early and stretch.",
+  "I walk to the market and buy a whetstone.",
+  "I watch the farmers bring in the first wheat.",
+  "I help carry sacks of grain to the mill.",
+  "I rest in the shade by the millstream.",
+  "I walk back to the village square.",
+  "I stop at the Crooked Lantern for a drink.",
+  "I ask Hobb how much I still owe him.",
+  "I finish my drink and leave.",
+  "I go to the stable.",
+  "I watch Tam muck out the stalls.",
+  "I ask Tam how old he is.",
+  "I help Tam carry a bucket of water.",
+  "I walk to the smithy.",
+  "I watch Garra hammer out a horseshoe.",
+  "I ask Garra about her old scar.",
+  "I ask Garra whether she has any family in the village.",
+  "I leave the smithy and walk to Maren's house.",
+  "I greet Maren.",
+  "I hand Maren a map of the Greywood I found and ask what she makes of it.",
+  "I help Maren with the evening chores.",
+  "I go back to the stable.",
+  "I sit with Tam on a hay bale.",
+  "I ask Tam whether he has kept my secret.",
+  "I walk to the inn.",
+  "I ask Hobb if he remembers the travelling tinker who stayed here.",
+  "I listen to the farmers' stories.",
+  "I walk back through the dark village.",
+  "I head home to where I'm staying and go to bed.",
+  "I wake and wash my face.",
+  "I go to the stable.",
+  "I saddle my mount and ride out to the fields.",
+  "I ride to the edge of the Greywood.",
+  "I stop and listen to the trees.",
+  "I think about home and the people I left there.",
+  "I ride back to the village.",
+  "I tell Hobb I'll pay the rest of what I owe after the festival.",
+  "I help set up tables for the harvest festival.",
+  "I dance at the festival.",
+  "I watch the lanterns float down the millstream."
+ ],
+ "key": [
+  {
+   "id": "home",
+   "kind": "hero",
+   "planted": 2,
+   "q": "Which place does Wren think of as her childhood home?",
+   "needs": [
+    [
+     "saltmere"
+    ]
+   ]
+  },
+  {
+   "id": "sister",
+   "kind": "hero",
+   "planted": 3,
+   "q": "Who in Wren's family is training for a trade, and what trade?",
+   "needs": [
+    [
+     "ilsa"
+    ],
+    [
+     "heal"
+    ]
+   ]
+  },
+  {
+   "id": "fear",
+   "kind": "hero",
+   "planted": 10,
+   "q": "Why does Wren stay away from rivers and lakes?",
+   "needs": [
+    [
+     "drown"
+    ],
+    [
+     "father"
+    ]
+   ]
+  },
+  {
+   "id": "secret",
+   "kind": "hero",
+   "planted": 14,
+   "q": "What did Wren reveal about her past to the stable boy?",
+   "needs": [
+    [
+     "finder",
+     "guild"
+    ]
+   ]
+  },
+  {
+   "id": "beloved",
+   "kind": "hero",
+   "planted": 18,
+   "q": "Who is waiting for Wren back home?",
+   "needs": [
+    [
+     "mary"
+    ]
+   ]
+  },
+  {
+   "id": "charm",
+   "kind": "hero",
+   "planted": 22,
+   "q": "What keepsake does Wren carry from her family, and who gave it to her?",
+   "needs": [
+    [
+     "bead"
+    ],
+    [
+     "mother"
+    ]
+   ]
+  },
+  {
+   "id": "pelt",
+   "kind": "hero",
+   "planted": 7,
+   "q": "What did Wren promise to bring the smith?",
+   "needs": [
+    [
+     "pelt"
+    ]
+   ]
+  },
+  {
+   "id": "tam_debt",
+   "kind": "hero",
+   "planted": 24,
+   "q": "What does the stable boy owe Wren?",
+   "needs": [
+    [
+     "five copper",
+     "5 copper"
+    ],
+    [
+     "fish"
+    ]
+   ]
+  },
+  {
+   "id": "tam_age",
+   "kind": "people",
+   "planted": 13,
+   "q": "Roughly how old is the stable boy?",
+   "needs": [
+    [
+     "twelve",
+     "12"
+    ]
+   ],
+   "forbid": [
+    "forties",
+    "forty",
+    "fisherman"
+   ]
+  },
+  {
+   "id": "garra_scar",
+   "kind": "people",
+   "planted": 7,
+   "q": "What old injury does the smith have, and where on her body?",
+   "needs": [
+    [
+     "burn",
+     "scar"
+    ],
+    [
+     "hand"
+    ]
+   ]
+  },
+  {
+   "id": "maren_reads",
+   "kind": "people",
+   "planted": 9,
+   "q": "How does Elder Maren read a letter?",
+   "needs": [
+    [
+     "finger",
+     "touch",
+     "trac"
+    ]
+   ]
+  },
+  {
+   "id": "oswin",
+   "kind": "people",
+   "planted": 28,
+   "q": "Who was the tinker who stayed at the inn, and what was unusual about him?",
+   "needs": [
+    [
+     "oswin"
+    ],
+    [
+     "eye"
+    ]
+   ]
+  },
+  {
+   "id": "related",
+   "kind": "people",
+   "planted": 37,
+   "q": "How are the stable boy and the smith related?",
+   "needs": [
+    [
+     "aunt",
+     "nephew"
+    ]
+   ]
+  },
+  {
+   "id": "debt",
+   "kind": "changed",
+   "planted": 5,
+   "q": "How much money does Wren owe the innkeeper right now?",
+   "needs": [
+    [
+     "three silver",
+     "3 silver"
+    ]
+   ],
+   "changes": [
+    {
+     "at": 52,
+     "needs": [
+      [
+       "two silver",
+       "2 silver"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "lodging",
+   "kind": "changed",
+   "planted": 4,
+   "q": "Where does Wren sleep these nights?",
+   "needs": [
+    [
+     "inn",
+     "lantern"
+    ]
+   ],
+   "changes": [
+    {
+     "at": 58,
+     "needs": [
+      [
+       "maren"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mount",
+   "kind": "changed",
+   "planted": 11,
+   "q": "What animal does Wren ride, and what is its name?",
+   "needs": [
+    [
+     "pebble"
+    ]
+   ],
+   "changes": [
+    {
+     "at": 74,
+     "needs": [
+      [
+       "ember"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "magic",
+   "kind": "world",
+   "planted": 0,
+   "q": "What does using magic cost a person in this world?",
+   "needs": [
+    [
+     "tired",
+     "mark",
+     "exhaust"
+    ]
+   ]
+  }
+ ],
+ "probes": [
+  {
+   "id": "debt",
+   "turn": 88,
+   "planted": 52,
+   "needs": [
+    [
+     "two silver",
+     "2 silver",
+     "one more silver",
+     "two more",
+     "remaining two"
+    ]
+   ]
+  },
+  {
+   "id": "tam_age",
+   "turn": 92,
+   "planted": 13,
+   "needs": [
+    [
+     "twelve",
+     "12"
+    ]
+   ],
+   "forbid": [
+    "forties",
+    "forty",
+    "fisherman"
+   ]
+  },
+  {
+   "id": "garra_scar",
+   "turn": 96,
+   "planted": 7,
+   "needs": [
+    [
+     "hand"
+    ]
+   ]
+  },
+  {
+   "id": "garra_family",
+   "turn": 97,
+   "planted": 37,
+   "needs": [
+    [
+     "tam",
+     "nephew"
+    ]
+   ]
+  },
+  {
+   "id": "maren_map",
+   "turn": 100,
+   "planted": 9,
+   "needs": [
+    [
+     "blind",
+     "finger",
+     "touch",
+     "trac",
+     "can't see",
+     "cannot see",
+     "sightless",
+     "eyes"
+    ]
+   ]
+  },
+  {
+   "id": "secret",
+   "turn": 104,
+   "planted": 14,
+   "needs": [
+    [
+     "finder",
+     "guild"
+    ]
+   ]
+  },
+  {
+   "id": "oswin",
+   "turn": 106,
+   "planted": 28,
+   "needs": [
+    [
+     "oswin",
+     "silver eye",
+     "glass eye"
+    ]
+   ]
+  },
+  {
+   "id": "lodging",
+   "turn": 109,
+   "planted": 58,
+   "needs": [
+    [
+     "maren",
+     "loft"
+    ]
+   ]
+  },
+  {
+   "id": "mount",
+   "turn": 112,
+   "planted": 74,
+   "needs": [
+    [
+     "ember",
+     "pony",
+     "chestnut"
+    ]
+   ]
+  },
+  {
+   "id": "home_thoughts",
+   "turn": 115,
+   "planted": 2,
+   "needs": [
+    [
+     "saltmere",
+     "mary",
+     "ilsa"
+    ]
+   ]
+  }
+ ]
+}

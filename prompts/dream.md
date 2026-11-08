@@ -9,7 +9,7 @@ You get:
 
 Return JSON:
 
-`pages`: one entry for each person, place, thing or group in the new turns with something worth remembering: a name, how they look, their age, their job, who they work for, what they said or promised, secrets, relationships. Include the hero, whose page holds anything the player says about the hero's past. Return every page you were given in `<wiki>`, updated, with the old facts that are still true.
+`pages`: one entry for each person, place, thing or group in the new turns with something worth remembering: a name, how they look, their age, their job, who they work for, what they said or promised, secrets, relationships. Include the hero, whose page holds anything the player says about the hero's past. The hero's name is in `<hero>`: name the hero's page exactly that, never "The Hero". The player speaks as the hero, so "I" and "my" in the turns mean the hero. Return every page you were given in `<wiki>`, updated, with the old facts that are still true.
 - `name`: the name used most. Put other names in `aliases`.
 - `kind`: person, place, thing or group.
 - `summary`: one line of at most 20 words with the details that must stay consistent, such as age, look and role.
