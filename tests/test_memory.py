@@ -302,3 +302,14 @@ def test_no_recall_for_weak_matches(tmp_path):
     game = Game(campaign, Budgeted(provider, campaign.usage, 100_000), "RULES", load_config(None))
     turn = game.take_turn("I walk to the stew pot by the well")  # only one word matches
     assert turn.recalled == [] and "<recalled>" not in provider.calls[0][1][-1].text
+
+
+def test_search_leaves_out_rejected_notes(tmp_path):
+    notes = NotesStore(tmp_path / "notes")
+    notes.add("Wren's sister is named Mara and works as a sailor.", ["Wren"], "s001-t0003")
+    notes.add("Wren's sister keeps bees.", ["Wren"], "s001-t0004")
+    notes.set_status("n0001", "wrong", "Wren's sister is Ilsa, an apprentice healer.")
+    notes.set_status("n0002", "unsupported")
+    (tmp_path / "turns").mkdir()
+    hits = search(tmp_path / "turns", notes, "What is the name of Wren's sister?")
+    assert [h.text for h in hits] == ["Correction: Wren's sister is Ilsa, an apprentice healer."]
