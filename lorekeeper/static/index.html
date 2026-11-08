@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lorekeeper</title>
+<style>
+  :root {
+    --bg: #15130f;
+    --panel: #1e1b16;
+    --panel-2: #26221b;
+    --line: #3a342a;
+    --text: #ece4d4;
+    --muted: #a89c86;
+    --faint: #7a6f5d;
+    --accent: #d9a54a;
+    --accent-ink: #1b1408;
+    --you: #9cc3d9;
+    --ok: #8fbf7a;
+    --bad: #e07a6a;
+    --warn: #d9b34a;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:disabled { cursor: default; opacity: .55; }
+  .app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { margin: 0; font: 600 20px/1 var(--serif); letter-spacing: .02em; color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .usage { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .bar { width: 120px; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 6px; border-radius: 9px; background: var(--accent-ink); color: var(--accent); font-size: 12px; font-weight: 600; text-align: center; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
+  .story { display: grid; grid-template-rows: 1fr auto; min-height: 0; border-right: 1px solid var(--line); }
+  .log { overflow-y: auto; padding: 24px clamp(16px, 4vw, 56px); }
+  .log-inner { max-width: 760px; margin: 0 auto; }
+  .recap { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-family: var(--serif); color: var(--muted); }
+  .recap b { color: var(--accent); font-family: var(--sans); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; display: block; margin-bottom: 4px; }
+  .turn { margin: 0 0 22px; }
+  .turn.old { opacity: .62; }
+  .you { color: var(--you); font-size: 14px; margin-bottom: 6px; }
+  .you::before { content: "You  "; color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .narration { font: 17px/1.65 var(--serif); white-space: pre-wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 1px 8px; background: var(--panel); }
+  .chip.mem { color: var(--accent); }
+  .chip.id { font-family: var(--mono); color: var(--faint); border: 0; background: none; padding: 1px 0; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 26px 0; color: var(--faint); font-size: 12px; }
+  .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px dashed var(--line); }
+  .thinking { color: var(--muted); font-style: italic; font-family: var(--serif); }
+  .error { color: var(--bad); font-size: 14px; margin: 0 0 18px; }
+
+  form.move { border-top: 1px solid var(--line); background: var(--panel); padding: 12px clamp(16px, 4vw, 56px); }
+  .move-inner { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 15px/1.4 var(--sans); min-height: 44px; max-height: 160px; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .hint { max-width: 760px; margin: 6px auto 0; font-size: 12px; color: var(--faint); }
+
+  aside { display: grid; grid-template-rows: auto 1fr; min-height: 0; background: var(--panel); }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 4px; color: var(--muted); font-size: 13px; }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .pane { overflow-y: auto; padding: 16px; }
+  .pane h2 { font: 600 12px/1 var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 18px 0 8px; }
+  .pane h2:first-child { margin-top: 0; }
+  .hero-name { font: 600 22px/1.2 var(--serif); margin-bottom: 8px; }
+  .hp { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .hp .bar { flex: 1; width: auto; height: 8px; }
+  .hp .bar > span { background: var(--ok); }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  ul.plain li:last-child { border-bottom: 0; }
+  .note-meta { font-size: 12px; color: var(--faint); margin-top: 2px; }
+  .status { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+  .status.unverified { color: var(--warn); background: #3a3020; }
+  .status.confirmed { color: var(--ok); background: #24331f; }
+  .status.wrong, .status.unsupported { color: var(--bad); background: #3a2420; }
+  .struck { text-decoration: line-through; color: var(--muted); }
+  .fix { color: var(--ok); font-size: 13px; margin-top: 2px; }
+  .page-link { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; }
+  .page-link:hover .page-name { color: var(--accent); }
+  .page-name { font-weight: 600; }
+  .kind { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-left: 6px; }
+  .summary { color: var(--muted); font-size: 13px; }
+  .cite { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .quote { color: var(--faint); font-style: italic; font-size: 12px; }
+  .canon h3 { font: 600 15px/1.3 var(--serif); color: var(--accent); margin: 16px 0 6px; }
+  .canon h3:first-child { margin-top: 0; }
+  .canon p, .canon li { font-size: 14px; margin: 4px 0; }
+  .canon ul { padding-left: 18px; margin: 4px 0; }
+  .empty { color: var(--faint); font-size: 14px; }
+  .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-row input { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; }
+  .explain { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; width: min(640px, calc(100vw - 32px)); padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  .dlg-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .dlg-head h2 { margin: 0; font: 600 17px/1 var(--serif); color: var(--accent); }
+  .dlg-body { padding: 16px; max-height: 70vh; overflow-y: auto; }
+  .dlg-body pre { white-space: pre-wrap; font: 13px/1.5 var(--mono); margin: 0; }
+
+  @media (max-width: 900px) {
+    .app { height: auto; min-height: 100vh; }
+    main { grid-template-columns: 1fr; }
+    .story { border-right: 0; height: 75vh; }
+    aside { border-top: 1px solid var(--line); min-height: 60vh; }
+    .usage .bar { width: 70px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Lorekeeper</h1>
+    <span class="meta" id="meta"></span>
+    <span class="spacer"></span>
+    <span class="usage" title="Tokens used today, against the daily cap"><span id="usage-text"></span><span class="bar"><span id="usage-bar" style="width:0"></span></span></span>
+    <button class="btn" id="dream-btn" title="Fold recent turns into the wiki and canon">Dream<span class="badge" id="undreamed">0</span></button>
+  </header>
+  <main>
+    <section class="story">
+      <div class="log" id="log"><div class="log-inner" id="log-inner"></div></div>
+      <form class="move" id="move-form">
+        <div class="move-inner">
+          <textarea id="move" rows="1" placeholder="What do you do?" autocomplete="off"></textarea>
+          <button class="btn primary" id="send" type="submit">Act</button>
+        </div>
+        <div class="hint">Enter to act, Shift+Enter for a new line. Faded turns have left the game master's view; it only knows them through memory.</div>
+      </form>
+    </section>
+    <aside>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="hero" aria-selected="true">Hero</button>
+        <button role="tab" data-tab="notes">Notes</button>
+        <button role="tab" data-tab="wiki">Wiki</button>
+        <button role="tab" data-tab="canon">Canon</button>
+        <button role="tab" data-tab="search">Search</button>
+      </nav>
+      <div class="pane" id="pane"></div>
+    </aside>
+  </main>
+</div>
+
+<dialog id="dream-dlg">
+  <div class="dlg-head"><h2>Dream</h2><span class="spacer"></span><button class="btn" id="dream-close">Close</button></div>
+  <div class="dlg-body"><pre id="dream-report"></pre></div>
+</dialog>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let data = null;
+let tab = "hero";
+let openPage = null;
+let busy = false;
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) if (c != null && c !== false) node.append(c.nodeType ? c : String(c));
+  return node;
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+// --- header ---------------------------------------------------------------
+function renderHeader() {
+  $("meta").textContent = `${data.campaign} · session ${data.session} · ${data.turn_count} turns · ${data.provider}`;
+  const used = data.usage.today.input + data.usage.today.output;
+  $("usage-text").textContent = `${used.toLocaleString()} / ${data.usage.cap.toLocaleString()} today`;
+  $("usage-bar").style.width = Math.min(100, 100 * used / data.usage.cap) + "%";
+  $("undreamed").textContent = data.undreamed;
+  $("dream-btn").title = data.undreamed
+    ? `${data.undreamed} turns not dreamed yet. Dreaming turns them into wiki pages and checks notes.`
+    : "Everything has been dreamed.";
+}
+
+// --- story ----------------------------------------------------------------
+function renderLog(extra) {
+  const inner = $("log-inner");
+  inner.replaceChildren();
+  if (data.recap) inner.append(el("div", { class: "recap" }, el("b", {}, "Previously"), data.recap));
+  if (!data.turns.length) {
+    inner.append(el("p", { class: "narration" },
+      "You arrive at dusk in Thornwick, a farming village on the edge of the Greywood, with a sealed letter for the village elder."));
+  }
+  let shownDivider = false;
+  for (const t of data.turns) {
+    if (t.in_window && !shownDivider && data.turns.some((x) => !x.in_window)) {
+      inner.append(el("div", { class: "divider" }, "The game master sees the turns below directly"));
+      shownDivider = true;
+    }
+    inner.append(turnNode(t));
+  }
+  if (extra) inner.append(extra);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+function turnNode(t) {
+  const chips = [el("span", { class: "chip id" }, t.id)];
+  for (const r of t.recalled) chips.push(el("span", { class: "chip", title: "Found by automatic recall and shown to the game master" }, `recalled ${r}`));
+  for (const f of t.remembered) chips.push(el("span", { class: "chip mem", title: "Saved as a note" }, `remembered: ${f}`));
+  for (const q of t.searched) chips.push(el("span", { class: "chip", title: "The game master searched its memory" }, `searched: ${q}`));
+  return el("div", { class: "turn" + (t.in_window ? "" : " old") },
+    el("div", { class: "you" }, t.player),
+    el("div", { class: "narration" }, t.narration),
+    el("div", { class: "chips" }, chips));
+}
+
+async function act(move) {
+  if (busy || !move) return;
+  if (move === "/dream") return dream();
+  if (move.startsWith("/search")) { tab = "search"; renderPane(move.slice(7).trim()); return; }
+  busy = true;
+  $("send").disabled = true;
+  $("move").value = "";
+  const pending = el("div", { class: "turn" }, el("div", { class: "you" }, move),
+    el("div", { class: "thinking" }, "The game master is thinking..."));
+  renderLog(pending);
+  try {
+    const out = await api("/api/turn", { move });
+    if (out.error) {
+      renderLog(el("p", { class: "error" }, out.error));
+      $("move").value = move;
+    } else {
+      data = out;
+      const notes = [];
+      if (out.tokens) notes.push(`${out.tokens.input.toLocaleString()} in (${out.tokens.cached.toLocaleString()} cached) / ${out.tokens.output.toLocaleString()} out`);
+      if (out.parse_error) notes.push(`state not updated: ${out.parse_error}`);
+      renderAll(notes.length ? el("div", { class: "chips" }, el("span", { class: "chip id" }, notes.join(" · "))) : null);
+    }
+  } catch (e) {
+    renderLog(el("p", { class: "error" }, "Lost contact with the game. Is the server still running?"));
+    $("move").value = move;
+  } finally {
+    busy = false;
+    $("send").disabled = false;
+    $("move").focus();
+  }
+}
+
+// --- side panes -----------------------------------------------------------
+function renderPane(searchText) {
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === tab);
+  const pane = $("pane");
+  pane.replaceChildren();
+  ({ hero: heroPane, notes: notesPane, wiki: wikiPane, canon: canonPane, search: searchPane })[tab](pane, searchText);
+}
+
+function heroPane(pane) {
+  const s = data.state, hero = s.hero || {};
+  const hp = Math.max(0, Math.min(100, 100 * (hero.hp || 0) / (hero.max_hp || 1)));
+  pane.append(
+    el("div", { class: "hero-name" }, hero.name || "Hero"),
+    el("div", { class: "hp" }, `HP ${hero.hp}/${hero.max_hp}`, el("span", { class: "bar" }, el("span", { style: `width:${hp}%` }))),
+    el("h2", {}, "State sheet"),
+    el("p", { class: "explain" }, "Code keeps these numbers and lists, and they are in every prompt. The game master can only propose changes."),
+    el("dl", {}, el("dt", {}, "Purse"), el("dd", {}, data.purse), el("dt", {}, "Location"), el("dd", {}, s.location || "?")),
+    el("h2", {}, "Carrying"),
+    s.inventory.length ? el("ul", { class: "plain" }, s.inventory.map((i) => el("li", {}, i))) : el("p", { class: "empty" }, "Nothing."),
+  );
+  for (const [place, items] of Object.entries(s.stored || {})) {
+    pane.append(el("h2", {}, `Left at ${place}`), el("ul", { class: "plain" }, items.map((i) => el("li", {}, i))));
+  }
+  const flags = Object.entries(s.flags || {});
+  pane.append(el("h2", {}, "Flags"), flags.length
+    ? el("dl", {}, flags.flatMap(([k, v]) => [el("dt", {}, k.replace(/_/g, " ")), el("dd", {}, typeof v === "string" ? v : JSON.stringify(v))]))
+    : el("p", { class: "empty" }, "None yet."));
+}
+
+function notesPane(pane) {
+  pane.append(el("p", { class: "explain" },
+    "Facts the game master chose to remember, citing the turn they came from. Unverified notes go in the prompt. Dreaming checks each one against the transcript."));
+  if (!data.notes.length) return pane.append(el("p", { class: "empty" }, "No notes yet."));
+  const rejected = (n) => n.status === "wrong" || n.status === "unsupported";
+  pane.append(el("ul", { class: "plain" }, [...data.notes].reverse().map((n) => el("li", {},
+    el("div", {}, el("span", { class: "status " + n.status }, n.status), el("span", { class: rejected(n) ? "struck" : "" }, n.text)),
+    n.correction ? el("div", { class: "fix" }, `Correction: ${n.correction}`) : null,
+    el("div", { class: "note-meta" }, `${n.id} · from ${n.turn}${n.about.length ? " · about " + n.about.join(", ") : ""}`)))));
+}
+
+async function wikiPane(pane) {
+  if (openPage) {
+    const p = await api(`/api/wiki/${encodeURIComponent(openPage)}`);
+    if (tab !== "wiki") return;  // the player switched tabs while this loaded
+    if (p.error) { openPage = null; return renderPane(); }
+    pane.append(el("div", {},
+      el("button", { class: "btn", onclick: () => { openPage = null; renderPane(); } }, "All pages"),
+      el("div", { class: "hero-name", style: "margin-top:14px" }, p.name, el("span", { class: "kind" }, p.kind)),
+      el("p", { class: "summary" }, p.summary),
+      p.aliases.length ? el("p", { class: "summary" }, `Also called: ${p.aliases.join(", ")}`) : null,
+      el("h2", {}, "Facts"),
+      el("p", { class: "explain" }, "Each fact cites a turn and a quote from it. Dreaming drops facts whose quote isn't in that turn."),
+      p.facts.length ? el("ul", { class: "plain" }, p.facts.map((f) => el("li", {}, f.text, " ", el("span", { class: "cite" }, f.turn),
+        f.quote ? el("div", { class: "quote" }, `"${f.quote}"`) : null))) : el("p", { class: "empty" }, "None."),
+      p.contradictions.length ? [el("h2", {}, "Contradictions"), el("ul", { class: "plain" }, p.contradictions.map((c) => el("li", {}, c)))] : null,
+    ));
+    return;
+  }
+  pane.append(el("p", { class: "explain" }, "Pages that dreaming writes from the transcript. Their one-line summaries become the Cast in canon."));
+  if (!data.wiki.length) return pane.append(el("p", { class: "empty" }, "No pages yet. Press Dream to write them."));
+  let kind = null, list = null;
+  for (const p of data.wiki) {
+    if (p.kind !== kind) {
+      kind = p.kind;
+      list = el("ul", { class: "plain" });
+      pane.append(el("h2", {}, kind === "person" ? "People" : kind + "s"), list);
+    }
+    list.append(el("li", {}, el("button", { class: "page-link", onclick: () => { openPage = p.slug; renderPane(); } },
+      el("span", { class: "page-name" }, p.name), el("span", { class: "kind" }, `${p.facts_count} facts`),
+      el("div", { class: "summary" }, p.summary))));
+  }
+}
+
+function canonPane(pane) {
+  pane.append(el("p", { class: "explain" },
+    "The game master's standing memory, in the cached system prompt. It changes only when you dream."));
+  const box = el("div", { class: "canon" });
+  let list = null;
+  for (const raw of data.canon.split("\n")) {
+    const line = raw.trimEnd();
+    if (line.startsWith("# ")) continue;
+    if (line.startsWith("## ")) { list = null; box.append(el("h3", {}, line.slice(3))); }
+    else if (line.startsWith("- ")) { if (!list) { list = el("ul"); box.append(list); } list.append(el("li", {}, line.slice(2))); }
+    else if (line.trim()) { list = null; box.append(el("p", {}, line)); }
+  }
+  pane.append(box);
+}
+
+function searchPane(pane, initial) {
+  const input = el("input", { type: "search", placeholder: "Words to look for", value: initial || "" });
+  const results = el("div");
+  const run = async () => {
+    const q = input.value.trim();
+    if (!q) return;
+    results.replaceChildren(el("p", { class: "empty" }, "Searching..."));
+    const out = await api("/api/search", { query: q });
+    results.replaceChildren(out.hits.length
+      ? el("ul", { class: "plain" }, out.hits.map((h) => el("li", {}, el("span", { class: "cite" }, `${h.kind} ${h.id}`), el("div", { style: "white-space:pre-wrap" }, h.text))))
+      : el("p", { class: "empty" }, "Nothing found."));
+  };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  pane.append(
+    el("p", { class: "explain" }, "The same local search the game master uses: notes, wiki pages and every old turn. It costs no tokens."),
+    el("div", { class: "search-row" }, input, el("button", { class: "btn", onclick: run }, "Search")),
+    results);
+  if (initial) run();
+  input.focus();
+}
+
+// --- dreaming -------------------------------------------------------------
+async function dream() {
+  if (busy) return;
+  busy = true;
+  $("dream-btn").disabled = true;
+  $("send").disabled = true;
+  $("dream-report").textContent = "Dreaming over the new turns. This takes a little while...";
+  $("dream-dlg").showModal();
+  try {
+    const out = await api("/api/dream", {});
+    $("dream-report").textContent = out.error || out.report;
+    if (out.campaign) { data = out; renderAll(); }
+  } catch (e) {
+    $("dream-report").textContent = "Lost contact with the game. Is the server still running?";
+  } finally {
+    busy = false;
+    $("dream-btn").disabled = false;
+    $("send").disabled = false;
+  }
+}
+
+function renderAll(extra) {
+  renderHeader();
+  renderLog(extra);
+  renderPane();
+}
+
+// --- wiring ---------------------------------------------------------------
+$("move-form").addEventListener("submit", (e) => { e.preventDefault(); act($("move").value.trim()); });
+$("move").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); act($("move").value.trim()); }
+});
+$("move").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; });
+for (const b of document.querySelectorAll(".tabs button")) b.addEventListener("click", () => { tab = b.dataset.tab; renderPane(); });
+$("dream-btn").addEventListener("click", dream);
+$("dream-close").addEventListener("click", () => $("dream-dlg").close());
+
+api("/api/campaign").then((d) => { data = d; renderAll(); $("move").focus(); })
+  .catch(() => { $("log-inner").textContent = "Could not reach the game server."; });
+</script>
+</body>
+</html>
