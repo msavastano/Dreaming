@@ -6,3 +6,5 @@ __pycache__/
 .env
 # Your campaigns hold your play history; keep them out of git.
 campaigns/
+# Eval campaigns are scratch; the reports in evals/results/ are worth keeping.
+evals/runs/

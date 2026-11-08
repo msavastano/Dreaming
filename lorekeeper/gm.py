@@ -68,6 +68,13 @@ REPLY_SCHEMA: dict = {
     "additionalProperties": False,
 }
 
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
+
 TOOLS = [
     ToolSpec(
         name="remember",

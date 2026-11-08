@@ -5,12 +5,13 @@ experiment in the layered agent memory and offline "dreaming" described in
 Anthropic's [components of agent memory](https://www.anthropic.com/research/components-of-agent-memory)
 article.
 
-This is **milestone 3: dreaming**. The game master narrates, code tracks the
+This is **milestone 4: measuring memory**. The game master narrates, code tracks the
 hero's state, every turn is saved to a transcript, and every model call is
 logged with its token counts. The game master can save notes and search the
 whole campaign. After play, a dreaming pass reads the new turns and writes a
 wiki page for every person, place and thing, checks the notes, and rebuilds
-the canon that goes into every prompt.
+the canon that goes into every prompt. An eval replays a scripted campaign
+with and without memory to show whether it helps.
 
 ## Run it
 
@@ -106,6 +107,38 @@ between dreams.
 
 Dreaming uses Haiku with medium effort by default (`[dream]` in
 `config.toml`). Set `provider = "gemini"` to dream with Gemini Flash instead.
+
+## Measuring whether memory helps
+
+```bash
+python -m lorekeeper.eval --provider claude          # asks before spending anything
+python -m lorekeeper.eval --setups A,C --turns 30    # a cheaper partial run
+```
+
+The eval replays `evals/thornwick-60.json`, 60 fixed player moves, under three
+setups:
+
+| Setup | What the game master has |
+| --- | --- |
+| A. No memory | The recent-turns window only. No tools, notes or recall. |
+| B. Notes | A, plus `remember`, `search_memory`, notes in the prompt and recall. |
+| C. Notes + dreaming | B, plus a dream every 20 turns. |
+
+The player states 12 facts in the first 24 turns: where Wren grew up, a debt to
+Hobb, a promise to the smith, a secret told to Tam, and so on. After turns 30
+and 60, each setup answers out-of-character quiz questions about them. Answers
+are graded against a keyword answer key, so grading costs nothing. A wrong
+note ("Wren's sister is a sailor named Mara") is planted in B and C to see
+whether dreaming marks it wrong.
+
+The report goes to `evals/results/` as Markdown and JSON. The column that
+matters is **Quiz, out of view**: questions about facts whose turn had left
+the recent-turns window, so only memory could answer them. The report also
+shows tokens per turn, dream tokens, tool use, the wrong note's final status
+and the wiki's size compared with the transcript. Each setup's campaign is
+kept under `evals/runs/` so you can read what happened. Before it runs, the
+eval prints a rough token estimate and asks you to confirm; `--max-tokens`
+caps each setup (2,000,000 by default).
 
 ## Where things live
 
