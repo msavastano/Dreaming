@@ -72,8 +72,9 @@ DREAM_SCHEMA = {
 MIN_SPLIT_TURNS = 3
 
 OWNED_SECTIONS = ("Story so far", "Open threads", "The hero", "Cast", "Contradictions to keep straight")
-# The hero's facts all go in canon, newest kept, since the cast list only shows a one-line summary.
-HERO_FACTS = 25
+# The hero's facts go in canon, since the cast list only shows a one-line summary. At about 15 tokens
+# a fact, 80 facts is ~1,200 cached tokens. 25 dropped old facts by turn 120 in the eval.
+HERO_FACTS = 80
 
 
 class DreamError(Exception):
