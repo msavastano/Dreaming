@@ -34,8 +34,9 @@ thinking_level = "MEDIUM"  # Gemini thinking level for dreaming
 min_turns = 10
 on_quit = true
 # Turns per dream call. A long backlog is dreamed in several calls.
-chunk_turns = 40
-max_output_tokens = 8000
+chunk_turns = 25
+# Haiku and Gemini think before answering, and thinking counts against this limit.
+max_output_tokens = 16000
 # At most this many wiki pages appear in the cast list in canon.md.
 cast_limit = 60
 

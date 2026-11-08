@@ -141,3 +141,22 @@ def test_game_uses_dreamed_memory(tmp_path):
     assert "- Tam (person): Freckled boy" in system          # cast is in the cached system prompt
     notes_block = messages[-1].text.split("</notes>")[0]
     assert "Hobb owes Wren a favor." in notes_block and "Tam is a boy." not in notes_block  # only unchecked notes
+
+
+def test_output_limit_is_reported_and_changes_nothing(tmp_path):
+    import pytest
+    from lorekeeper.dream import DreamError
+    from lorekeeper.llm import Reply, Usage
+
+    class OutOfRoom:
+        name = "fake"
+
+        def complete(self, system, messages, max_tokens, meter, **kwargs):
+            meter.before_call()
+            meter.after_call("fake-1", Usage(9000, 8000, 0))
+            return Reply(text="", model="fake-1", input_tokens=9000, output_tokens=8000, stop_reason="max_tokens")
+
+    campaign, _, _, config = setup(tmp_path)
+    with pytest.raises(DreamError, match="ran out of output room"):
+        dream(campaign, Budgeted(OutOfRoom(), campaign.usage, 100_000), "R", config, force=True)
+    assert len(undreamed_turns(campaign)) == 1 and campaign.wiki.all() == []

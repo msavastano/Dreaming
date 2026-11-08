@@ -165,11 +165,16 @@ def dream(campaign, llm: Budgeted, rules: str, config: dict, force: bool = False
         result.calls += reply.calls
         result.input_tokens += reply.input_tokens
         result.output_tokens += reply.output_tokens
+        if reply.stop_reason == "max_tokens":
+            raise DreamError(
+                f"The dream ran out of output room ({reply.output_tokens:,} tokens, most of it the model's "
+                f"thinking) before it finished. Nothing was changed for these turns. Raise dream.max_output_tokens "
+                f"(now {cfg['max_output_tokens']:,}) or lower dream.chunk_turns (now {cfg['chunk_turns']}).")
         try:
             data = json.loads(reply.text)
         except json.JSONDecodeError as e:
-            raise DreamError(f"The dream reply was not valid JSON ({e}), usually because it was cut off. "
-                             "Nothing was changed for these turns. Try a lower dream.chunk_turns.") from e
+            raise DreamError(f"The dream reply was not valid JSON ({e}; stop reason {reply.stop_reason or 'unknown'}, "
+                             f"{reply.output_tokens:,} output tokens). Nothing was changed for these turns.") from e
         _apply(campaign, data, chunk, all_turns, sections, result, given)
         # Save progress after each chunk, so a failure later doesn't redo this one.
         state["dreamed_turns"] += len(chunk)

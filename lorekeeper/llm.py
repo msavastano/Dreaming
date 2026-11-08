@@ -50,6 +50,7 @@ class Reply:
     cached_tokens: int = 0
     calls: int = 1
     tool_calls: list[dict] = field(default_factory=list)  # {"name", "args", "result"}
+    stop_reason: str = ""  # "max_tokens" when the output limit cut the reply off
 
 
 # Runs a tool: (name, args) -> result text.
@@ -217,7 +218,9 @@ class GeminiProvider:
                 result_parts.append(types.Part.from_function_response(name=fc.name, response={"result": result}))
             contents.append(types.Content(role="user", parts=result_parts))
 
+        finish = getattr(response.candidates[0], "finish_reason", None) if response.candidates else None
         return Reply(
+            stop_reason="max_tokens" if finish is not None and "MAX_TOKENS" in str(finish) else str(finish or ""),
             text=response.text or "",
             model=self.model,
             input_tokens=total.input_tokens,
@@ -304,6 +307,7 @@ class ClaudeProvider:
             cached_tokens=total.cached_tokens,
             calls=calls,
             tool_calls=tool_log,
+            stop_reason=response.stop_reason or "",
         )
 
     @staticmethod

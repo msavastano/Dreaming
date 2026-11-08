@@ -86,7 +86,7 @@ the shell:
 python -m lorekeeper.dream --campaign test2          # add --force for short sessions
 ```
 
-One model call per 40 new turns (`dream.chunk_turns`) returns:
+One model call per 25 new turns (`dream.chunk_turns`) returns:
 
 - **Wiki pages** for each person, place, thing or group, including the hero.
   Every fact cites its turn and quotes a few words from it. Code checks each
