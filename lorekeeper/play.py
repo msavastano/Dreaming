@@ -98,12 +98,13 @@ class Game:
             return format_hits(hits)
         return f"Unknown tool {name!r}."
 
-    def take_turn(self, move: str) -> gm.Turn:
+    def _prompt(self, move: str):
+        """The messages for one move, plus what recall found. Shared by play and the eval quiz."""
         cfg = self.config["narration"]
         recent = load_window(self.campaign.transcripts, cfg["window_turns"], cfg["window_step"])
         # Dreamed notes live on in the wiki and canon, so only unchecked ones go in the prompt.
         unchecked = [n for n in self.campaign.notes.all() if n.status == "unverified"]
-        shown_notes = unchecked[-cfg["notes_in_prompt"]:]
+        shown_notes = unchecked[-cfg["notes_in_prompt"]:] if cfg["notes_in_prompt"] > 0 else []
         notes = [format_note(n) for n in shown_notes]
         recalled = []
         if cfg["recall_hits"] > 0:
@@ -113,12 +114,17 @@ class Game:
                               limit=cfg["recall_hits"], exclude=seen, min_terms=2, wiki=self.campaign.wiki)
         messages = gm.build_messages(recent, self.state, move, notes,
                                      format_hits(recalled, cfg["recall_chars"]) if recalled else None)
+        return messages, recalled
+
+    def take_turn(self, move: str) -> gm.Turn:
+        cfg = self.config["narration"]
+        messages, recalled = self._prompt(move)
         reply = self.llm.complete(
             self.system,
             messages,
             cfg["max_output_tokens"],
             purpose="narrate",
-            tools=gm.TOOLS,
+            tools=gm.TOOLS if cfg["tools"] else None,
             tool_handler=self.run_tool,
             schema=gm.REPLY_SCHEMA,
             max_tool_rounds=cfg["max_tool_rounds"],
@@ -132,8 +138,25 @@ class Game:
         if turn.state_change:
             self.state = apply_changes(self.state, turn.state_change)
             save_state(self.campaign.state_path, self.state)
-        self.transcript.append(move, turn.narration, turn.state_change, turn.tool_calls)
+        self.transcript.append(move, turn.narration, turn.state_change, turn.tool_calls, turn.recalled)
         return turn
+
+    def ask(self, question: str) -> str:
+        """An out-of-character question, answered from memory. Nothing is saved to the campaign."""
+        cfg = self.config["narration"]
+        move = ("(Out of character. The player asks the game master a question about the campaign so far. "
+                "Answer in one or two sentences from what you know. If you don't know, say so.)\n"
+                f"Question: {question}")
+        messages, _ = self._prompt(move)
+        search_only = [t for t in gm.TOOLS if t.name == "search_memory"] if cfg["tools"] else None
+        reply = self.llm.complete(self.system, messages, cfg["max_output_tokens"], purpose="quiz",
+                                  tools=search_only, tool_handler=self.run_tool, schema=gm.ANSWER_SCHEMA,
+                                  max_tool_rounds=cfg["max_tool_rounds"])
+        self.last_reply = reply
+        try:
+            return str(json.loads(reply.text).get("answer", ""))
+        except (json.JSONDecodeError, AttributeError):
+            return reply.text
 
 
 def _is_long_flag(value) -> bool:

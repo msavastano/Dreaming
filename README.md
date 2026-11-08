@@ -5,12 +5,13 @@ experiment in the layered agent memory and offline "dreaming" described in
 Anthropic's [components of agent memory](https://www.anthropic.com/research/components-of-agent-memory)
 article.
 
-This is **milestone 3: dreaming**. The game master narrates, code tracks the
+This is **milestone 4: measuring memory**. The game master narrates, code tracks the
 hero's state, every turn is saved to a transcript, and every model call is
 logged with its token counts. The game master can save notes and search the
 whole campaign. After play, a dreaming pass reads the new turns and writes a
 wiki page for every person, place and thing, checks the notes, and rebuilds
-the canon that goes into every prompt.
+the canon that goes into every prompt. An eval replays a scripted campaign
+with and without memory to show whether it helps.
 
 ## Run it
 
@@ -98,14 +99,52 @@ One model call per 25 new turns (`dream.chunk_turns`) returns:
 - **The story so far, open threads and a recap.** The recap is shown as
   "Previously: …" when you next start.
 
-Then `canon.md` is rebuilt with those sections, a **Cast** list with one line
-per wiki page, and **Contradictions to keep straight**. Other sections, like
+Then `canon.md` is rebuilt with those sections, **The hero** (every checked
+fact about the player's character), a **Cast** list with one line per wiki
+page, and **Contradictions to keep straight**. Other sections, like
 World rules, are kept as written. The old canon is saved as `canon.prev.md`
 and the diff is printed. Canon sits in the system prompt, so it stays cached
 between dreams.
 
-Dreaming uses Haiku with medium effort by default (`[dream]` in
-`config.toml`). Set `provider = "gemini"` to dream with Gemini Flash instead.
+Dreaming uses Haiku with low effort by default (`[dream]` in
+`config.toml`). At medium effort Haiku's thinking used up all 16,000 output
+tokens on 20 turns. If a dream call still runs out of room, it is retried as
+two halves. Set `provider = "gemini"` to dream with Gemini Flash instead.
+
+## Measuring whether memory helps
+
+```bash
+python -m lorekeeper.eval --provider claude          # asks before spending anything
+python -m lorekeeper.eval --setups A,C --turns 30    # a cheaper partial run
+```
+
+The eval replays `evals/thornwick-60.json`, 60 fixed player moves, under three
+setups:
+
+| Setup | What the game master has |
+| --- | --- |
+| A. Window + state sheet | The recent-turns window and the state sheet (flags, people, inventory). No tools, notes or recall. |
+| B. Notes | A, plus `remember`, `search_memory`, notes in the prompt and recall. |
+| C. Notes + dreaming | B, plus a dream every 20 turns. |
+
+The player states 12 facts in the first 24 turns: where Wren grew up, a debt to
+Hobb, a promise to the smith, a secret told to Tam, and so on. After turns 30
+and 60, each setup answers out-of-character quiz questions about them. Answers
+are graded against a keyword answer key, so grading costs nothing. A wrong
+note ("Wren's sister is a sailor named Mara") is planted in B and C to see
+whether dreaming marks it wrong.
+
+The report goes to `evals/results/` as Markdown and JSON. The column that
+matters is **Out of view, not on the sheet**: questions about facts whose turn
+had left the recent-turns window and that the game master hadn't written into
+a state flag, so only notes or dreaming could answer them. The state sheet is
+in every prompt, which is why setup A can still answer many out-of-view
+questions. The report also
+shows tokens per turn, dream tokens, tool use, the wrong note's final status
+and the wiki's size compared with the transcript. Each setup's campaign is
+kept under `evals/runs/` so you can read what happened. Before it runs, the
+eval prints a rough token estimate and asks you to confirm; `--max-tokens`
+caps each setup (2,000,000 by default).
 
 ## Where things live
 

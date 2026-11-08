@@ -1,0 +1,227 @@
+{
+  "name": "thornwick-60",
+  "about": "60 player moves that plant 12 facts in the first 24 turns, then play on. Quizzes at turns 30 and 60.",
+  "moves": [
+    "I look around the village gate.",
+    "I go to the Crooked Lantern and tell Hobb I grew up in Saltmere, a fishing town on the coast.",
+    "I tell Hobb my sister Ilsa is an apprentice healer in Ashford, and I miss her.",
+    "I ask Hobb for a room for the night.",
+    "Hobb lends me three silver when I come up short. I promise to repay him by the next full moon.",
+    "I eat a bowl of stew and listen to the farmers talk.",
+    "In the morning I visit the smithy. I tell the smith, a broad woman named Garra, that I'll bring her a wolf pelt from the Greywood.",
+    "I ask Garra what she knows about the missing livestock.",
+    "I find Elder Maren and give her the sealed letter. I confide that I'm afraid of deep water because my father drowned.",
+    "I ask Maren what the letter means for Thornwick.",
+    "I buy a grey mule at the stable and name her Pebble.",
+    "I ride my mule to the edge of the fields and look toward the Greywood.",
+    "I talk to the stable boy, Tam, about the woods.",
+    "I tell Tam a secret: I once worked for the Ashford Guild of Finders, and he must tell no one.",
+    "I head back to the inn for supper.",
+    "I agree to meet Garra at the old mill at dawn in three days.",
+    "I sleep.",
+    "Over breakfast I tell Hobb about Mary, my beloved, who waits for me in Saltmere.",
+    "I walk to the well and draw water.",
+    "I ask a villager whether anyone here can cast spells.",
+    "I go to the chapel and look around.",
+    "I show Maren my lucky charm, a blue glass bead my mother gave me.",
+    "I help a farmer mend a broken fence.",
+    "I lend Tam five copper, and he swears to repay me in fish.",
+    "I ask Hobb what gossip he has today.",
+    "I follow the north road a short way to see the flood damage.",
+    "I turn back before dark and return to the inn.",
+    "I check on my mule in the stable.",
+    "I write a short note home and give it to a passing carter.",
+    "I go to bed early.",
+    "At dawn I go to the old mill as I agreed.",
+    "I ask whoever is there what they've seen near the Greywood.",
+    "I walk along the millstream looking for tracks.",
+    "I follow the tracks toward the trees.",
+    "I stop at the treeline and listen.",
+    "I go back to the village and report what I found to Maren.",
+    "I ask Maren whether she has heard from the Guild.",
+    "I rest by the hearth at the inn.",
+    "I play a game of dice with the farmers.",
+    "I buy bread and cheese for the road.",
+    "I ask Hobb whether anyone has come asking about me.",
+    "I sharpen my sword in the yard.",
+    "I take my mule for a walk around the village green.",
+    "I watch the sunset from the chapel steps.",
+    "I sleep.",
+    "In the morning I ask Tam if he has heard anything new.",
+    "I visit the smithy and watch Garra work.",
+    "I walk the fence line at the edge of the Brandt pasture.",
+    "I look for signs of what took the sheep.",
+    "I head back toward the inn as the light fades.",
+    "I eat supper and listen for news.",
+    "I ask Hobb about the old north road.",
+    "I go up to my room and rest.",
+    "I wake at midnight to a noise outside and look out the window.",
+    "I go back to sleep.",
+    "At breakfast I ask Hobb what he plans for the harvest festival.",
+    "I walk to Maren's house to see if she needs help.",
+    "I offer to carry a message for Maren to the next village.",
+    "I prepare my mule for the road.",
+    "I take a last look around Thornwick before setting out."
+  ],
+  "quiz_after": [
+    30,
+    60
+  ],
+  "dream_every": 20,
+  "key": [
+    {
+      "id": "home",
+      "planted": 2,
+      "q": "Where did Wren grow up?",
+      "needs": [
+        [
+          "saltmere"
+        ]
+      ]
+    },
+    {
+      "id": "sister",
+      "planted": 3,
+      "q": "What is the name of Wren's sister, and what does she do?",
+      "needs": [
+        [
+          "ilsa"
+        ],
+        [
+          "healer",
+          "healing"
+        ]
+      ]
+    },
+    {
+      "id": "debt",
+      "planted": 5,
+      "q": "How much does Wren owe Hobb, and by when must it be repaid?",
+      "needs": [
+        [
+          "three silver",
+          "3 silver"
+        ],
+        [
+          "full moon"
+        ]
+      ]
+    },
+    {
+      "id": "smith",
+      "planted": 7,
+      "q": "What did Wren promise the smith?",
+      "needs": [
+        [
+          "pelt"
+        ]
+      ]
+    },
+    {
+      "id": "fear",
+      "planted": 9,
+      "q": "What is Wren afraid of, and why?",
+      "needs": [
+        [
+          "water"
+        ],
+        [
+          "father",
+          "drown"
+        ]
+      ]
+    },
+    {
+      "id": "mule",
+      "planted": 11,
+      "q": "What is the name of Wren's mule?",
+      "needs": [
+        [
+          "pebble"
+        ]
+      ]
+    },
+    {
+      "id": "secret",
+      "planted": 14,
+      "q": "What secret did Wren tell Tam?",
+      "needs": [
+        [
+          "finder",
+          "guild"
+        ]
+      ]
+    },
+    {
+      "id": "meeting",
+      "planted": 16,
+      "q": "Where and when did Wren agree to meet Garra?",
+      "needs": [
+        [
+          "mill"
+        ],
+        [
+          "dawn"
+        ]
+      ]
+    },
+    {
+      "id": "beloved",
+      "planted": 18,
+      "q": "Who is Wren's beloved?",
+      "needs": [
+        [
+          "mary"
+        ]
+      ]
+    },
+    {
+      "id": "magic",
+      "planted": 0,
+      "q": "What happens to someone in this world who casts a spell?",
+      "needs": [
+        [
+          "tired",
+          "marked",
+          "exhaust",
+          "mark"
+        ]
+      ]
+    },
+    {
+      "id": "charm",
+      "planted": 22,
+      "q": "What is Wren's lucky charm, and who gave it?",
+      "needs": [
+        [
+          "bead"
+        ],
+        [
+          "mother"
+        ]
+      ]
+    },
+    {
+      "id": "tam_debt",
+      "planted": 24,
+      "q": "What does Tam owe Wren?",
+      "needs": [
+        [
+          "five copper",
+          "5 copper"
+        ],
+        [
+          "fish"
+        ]
+      ]
+    }
+  ],
+  "wrong_note": {
+    "after": 3,
+    "text": "Wren's sister is named Mara and works as a sailor.",
+    "about": [
+      "Wren",
+      "sister"
+    ]
+  }
+}

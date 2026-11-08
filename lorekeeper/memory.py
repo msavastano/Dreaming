@@ -129,10 +129,19 @@ def search(transcripts: Path, notes: NotesStore, query: str, limit: int = 6,
 
     `exclude` skips ids the caller already has (turns in the window, notes in the
     prompt). `min_terms` keeps only results that match at least that many of the
-    query's words, which filters out weak matches for automatic recall.
+    query's words, which filters out weak matches for automatic recall. Notes that
+    dreaming marked wrong or unsupported are left out, except a wrong note's correction.
     """
-    docs: list[Hit] = [Hit(n.id, "note", f"{n.text} (about: {', '.join(n.about)})" if n.about else n.text)
-                       for n in notes.all() if n.id not in exclude]
+    docs: list[Hit] = []
+    for n in notes.all():
+        if n.id in exclude:
+            continue
+        if n.status in ("wrong", "unsupported"):
+            # Dreaming rejected this note. Only its correction, if any, is worth finding.
+            if n.status == "wrong" and n.correction:
+                docs.append(Hit(n.id, "note", f"Correction: {n.correction}"))
+            continue
+        docs.append(Hit(n.id, "note", f"{n.text} (about: {', '.join(n.about)})" if n.about else n.text))
     if wiki is not None:
         for page in wiki.all():
             if page.slug not in exclude:

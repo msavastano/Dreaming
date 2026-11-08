@@ -160,3 +160,44 @@ def test_output_limit_is_reported_and_changes_nothing(tmp_path):
     with pytest.raises(DreamError, match="ran out of output room"):
         dream(campaign, Budgeted(OutOfRoom(), campaign.usage, 100_000), "R", config, force=True)
     assert len(undreamed_turns(campaign)) == 1 and campaign.wiki.all() == []
+
+
+def test_a_chunk_that_runs_out_of_room_is_split_in_half(tmp_path):
+    from lorekeeper.llm import Reply, Usage
+
+    class RoomForThree:
+        """Runs out of room on more than three turns."""
+        name = "fake"
+
+        def __init__(self):
+            self.sizes = []
+
+        def complete(self, system, messages, max_tokens, meter, **kwargs):
+            meter.before_call()
+            meter.after_call("fake-1", Usage(9000, 800, 0))
+            size = messages[0].text.count("\nPlayer: ")
+            self.sizes.append(size)
+            if size > 3:
+                return Reply(text="", model="fake-1", input_tokens=9000, output_tokens=800, stop_reason="max_tokens")
+            return Reply(text=dream_json(), model="fake-1", input_tokens=9000, output_tokens=800)
+
+    turns = [(f"I wait {i}", f"Time passes {i}.") for i in range(6)]
+    campaign, _, _, config = setup(tmp_path, turns=turns)
+    campaign.notes.add("A note from a flag.", ["Wren"], "flag")
+    provider = RoomForThree()
+    result = dream(campaign, Budgeted(provider, campaign.usage, 100_000), "R", config, force=True)
+    assert provider.sizes == [6, 3, 3] and result.splits == 1 and result.calls == 3
+    assert undreamed_turns(campaign) == []
+
+
+def test_the_heros_facts_go_into_canon(tmp_path):
+    fear = ("I tell Maren I'm afraid of deep water because my father drowned.", "Maren nods slowly.")
+    wren = {"name": "Wren Ashby", "kind": "person", "aliases": [], "summary": "The hero, a courier.",
+            "facts": [{"text": "Wren is afraid of deep water because her father drowned.", "turn": "s001-t0001",
+                       "quote": "afraid of deep water because my father drowned"}],
+            "contradictions": []}
+    campaign, provider, llm, config = setup(tmp_path, turns=(fear,), steps=[dream_json(pages=[wren])])
+    dream(campaign, llm, "R", config, force=True)
+    canon = campaign.canon_path.read_text()
+    assert "## The hero\nWhat the player has said about Wren Ashby. Keep it true.\n" in canon
+    assert "- Wren is afraid of deep water because her father drowned." in canon

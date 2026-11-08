@@ -25,7 +25,8 @@ class Transcript:
         """The id the next appended turn will get."""
         return f"s{self.session:03d}-t{self.turn + 1:04d}"
 
-    def append(self, player: str, narration: str, state_change: dict | None, tool_calls: list[dict] | None = None) -> dict:
+    def append(self, player: str, narration: str, state_change: dict | None, tool_calls: list[dict] | None = None,
+               recalled: list[str] | None = None) -> dict:
         record = {
             "id": self.next_id(),
             "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -35,6 +36,8 @@ class Transcript:
         }
         if tool_calls:
             record["tools"] = tool_calls
+        if recalled:
+            record["recalled"] = recalled
         self.turn += 1
         with self.path.open("a") as f:
             f.write(json.dumps(record) + "\n")
