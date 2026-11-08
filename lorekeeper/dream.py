@@ -71,7 +71,9 @@ DREAM_SCHEMA = {
 # A chunk that overflows the output limit is split in half, down to this many turns.
 MIN_SPLIT_TURNS = 3
 
-OWNED_SECTIONS = ("Story so far", "Open threads", "Cast", "Contradictions to keep straight")
+OWNED_SECTIONS = ("Story so far", "Open threads", "The hero", "Cast", "Contradictions to keep straight")
+# The hero's facts all go in canon, newest kept, since the cast list only shows a one-line summary.
+HERO_FACTS = 25
 
 
 class DreamError(Exception):
@@ -274,6 +276,10 @@ def _apply(campaign, data: dict, chunk: list[dict], all_turns: dict, sections, r
 def _write_canon(campaign, preamble: str, sections, cfg) -> None:
     pages = sorted(campaign.wiki.all(), key=lambda p: p.updated, reverse=True)[:cfg["cast_limit"]]
     cast = sorted(pages, key=lambda p: (KINDS.index(p.kind) if p.kind in KINDS else 9, p.name.lower()))
+    hero = _hero_page(campaign)
+    if hero and hero.facts:
+        _set_section(sections, "The hero", f"What the player has said about {hero.name}. Keep it true.\n"
+                     + "\n".join(f"- {f.text}" for f in hero.facts[-HERO_FACTS:]))
     if cast:
         _set_section(sections, "Cast", "Everyone and everything met so far. Keep them consistent with this.\n"
                      + "\n".join(p.cast_line() for p in cast))
@@ -281,6 +287,18 @@ def _write_canon(campaign, preamble: str, sections, cfg) -> None:
     if contradictions:
         _set_section(sections, "Contradictions to keep straight", "\n".join(contradictions))
     campaign.canon_path.write_text(join_canon(preamble, sections))
+
+
+def _hero_page(campaign) -> Page | None:
+    try:
+        name = json.loads(campaign.state_path.read_text()).get("hero", {}).get("name", "")
+    except (OSError, ValueError):
+        return None
+    if not name:
+        return None
+    # The dream may give the hero a full name, like "Wren Ashby".
+    return campaign.wiki.find(name) or next(
+        (p for p in campaign.wiki.all() if p.kind == "person" and name.lower() in p.name.lower().split()), None)
 
 
 # --- running it ----------------------------------------------------------------

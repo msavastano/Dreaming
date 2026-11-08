@@ -188,3 +188,16 @@ def test_a_chunk_that_runs_out_of_room_is_split_in_half(tmp_path):
     result = dream(campaign, Budgeted(provider, campaign.usage, 100_000), "R", config, force=True)
     assert provider.sizes == [6, 3, 3] and result.splits == 1 and result.calls == 3
     assert undreamed_turns(campaign) == []
+
+
+def test_the_heros_facts_go_into_canon(tmp_path):
+    fear = ("I tell Maren I'm afraid of deep water because my father drowned.", "Maren nods slowly.")
+    wren = {"name": "Wren Ashby", "kind": "person", "aliases": [], "summary": "The hero, a courier.",
+            "facts": [{"text": "Wren is afraid of deep water because her father drowned.", "turn": "s001-t0001",
+                       "quote": "afraid of deep water because my father drowned"}],
+            "contradictions": []}
+    campaign, provider, llm, config = setup(tmp_path, turns=(fear,), steps=[dream_json(pages=[wren])])
+    dream(campaign, llm, "R", config, force=True)
+    canon = campaign.canon_path.read_text()
+    assert "## The hero\nWhat the player has said about Wren Ashby. Keep it true.\n" in canon
+    assert "- Wren is afraid of deep water because her father drowned." in canon

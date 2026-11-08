@@ -99,8 +99,9 @@ One model call per 25 new turns (`dream.chunk_turns`) returns:
 - **The story so far, open threads and a recap.** The recap is shown as
   "Previously: …" when you next start.
 
-Then `canon.md` is rebuilt with those sections, a **Cast** list with one line
-per wiki page, and **Contradictions to keep straight**. Other sections, like
+Then `canon.md` is rebuilt with those sections, **The hero** (every checked
+fact about the player's character), a **Cast** list with one line per wiki
+page, and **Contradictions to keep straight**. Other sections, like
 World rules, are kept as written. The old canon is saved as `canon.prev.md`
 and the diff is printed. Canon sits in the system prompt, so it stays cached
 between dreams.
