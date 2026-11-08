@@ -215,3 +215,26 @@ def test_facts_about_the_hero_on_other_pages_reach_canon(tmp_path):
     hero = canon.split("## The hero")[1].split("##")[0]
     assert "- Wren grew up in Saltmere." in hero and "- Wren told Tam she once worked for the Guild of Finders." in hero
     assert "Tam is a freckled boy" not in hero
+
+
+def test_a_page_called_the_hero_is_filed_under_the_heros_name(tmp_path):
+    fear = ("I tell Maren I'm afraid of deep water because my father drowned.", "Maren nods slowly.")
+    page = {"name": "The Hero", "kind": "person", "aliases": [], "summary": "A courier from Saltmere.",
+            "facts": [{"text": "The hero fears deep water because her father drowned.", "turn": "s001-t0001",
+                       "quote": "afraid of deep water because my father drowned"}], "contradictions": []}
+    campaign, provider, llm, config = setup(tmp_path, turns=(fear,), steps=[dream_json(pages=[page])])
+    # An older dream already wrote a "The Hero" page.
+    campaign.wiki.save(Page("The Hero", "person", "A courier.", [], [Fact("The hero grew up in Saltmere.", "s000-t0002", "")]))
+    dream(campaign, llm, "R", config, force=True)
+    assert [p.name for p in campaign.wiki.all()] == ["Wren"]
+    assert "<hero>Wren</hero>" in provider.calls[0][1][0].text
+    assert "name: The Hero" in provider.calls[0][1][0].text  # the old page was shown so it could be updated
+    hero = campaign.canon_path.read_text().split("## The hero")[1].split("##")[0]
+    assert "- The hero fears deep water because her father drowned." in hero
+
+
+def test_an_old_page_called_the_hero_still_feeds_canon(tmp_path):
+    campaign, provider, llm, config = setup(tmp_path, steps=[dream_json()])
+    campaign.wiki.save(Page("The Hero", "person", "A courier.", [], [Fact("The hero grew up in Saltmere.", "s000-t0002", "")]))
+    dream(campaign, llm, "R", config, force=True)  # the fake returns no pages, so the old one stays
+    assert "- The hero grew up in Saltmere." in campaign.canon_path.read_text()

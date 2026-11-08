@@ -212,9 +212,13 @@ def dream(campaign, llm: Budgeted, rules: str, config: dict, force: bool = False
 def _dream_chunk(campaign, llm, rules, cfg, chunk, notes, sections):
     text = "\n".join(turn_text(t) for t in chunk)
     pages = campaign.wiki.all()
-    given = [p for p in pages if p.mentioned_in(text) or any(p.mentioned_in(n.text) for n in notes)]
+    hero = _hero_page(campaign)
+    # The hero's page always goes in, since the turns say "I" more often than the hero's name.
+    given = [p for p in pages if p.mentioned_in(text) or any(p.mentioned_in(n.text) for n in notes)
+             or (hero and p.slug == hero.slug)]
     others = [p for p in pages if p not in given]
     parts = [
+        f"<hero>{_hero_name(campaign) or 'the hero'}</hero>",
         f"<story_so_far>\n{_get_section(sections, 'Story so far')}\n</story_so_far>",
         f"<open_threads>\n{_get_section(sections, 'Open threads')}\n</open_threads>",
         "<wiki>\n" + "\n\n".join(p.render() for p in given) + "\n</wiki>",
@@ -230,10 +234,14 @@ def _dream_chunk(campaign, llm, rules, cfg, chunk, notes, sections):
 def _apply(campaign, data: dict, chunk: list[dict], all_turns: dict, sections, result: DreamResult,
            sent: set[str]) -> None:
     last_id = chunk[-1]["id"]
+    hero_name = _hero_name(campaign)
     for entry in data.get("pages", []):
         name = " ".join(str(entry.get("name", "")).split())
         if not name:
             continue
+        stand_in = None
+        if name.lower() in HERO_STAND_INS and hero_name:
+            stand_in, name = name, hero_name  # "The Hero" is filed under the hero's name
         facts = []
         for f in entry.get("facts", []):
             turn = all_turns.get(f.get("turn", ""))
@@ -241,7 +249,7 @@ def _apply(campaign, data: dict, chunk: list[dict], all_turns: dict, sections, r
                 facts.append(Fact(" ".join(f["text"].split()), f["turn"], " ".join(f["quote"].split())))
             else:
                 result.dropped.append(f"{name}: {f.get('text', '')}")
-        existing = campaign.wiki.find(name) or next(
+        existing = campaign.wiki.find(name) or (stand_in and campaign.wiki.find(stand_in)) or next(
             (p for a in entry.get("aliases", []) if (p := campaign.wiki.find(a))), None)
         if existing and existing.slug not in sent:
             # The model didn't see this page, so keep its old facts.
@@ -307,16 +315,23 @@ def _hero_facts(campaign, hero: Page) -> list[Fact]:
     return facts[-HERO_FACTS:]
 
 
-def _hero_page(campaign) -> Page | None:
+HERO_STAND_INS = ("the hero", "hero", "the player", "player", "you")
+
+
+def _hero_name(campaign) -> str:
     try:
-        name = json.loads(campaign.state_path.read_text()).get("hero", {}).get("name", "")
+        return json.loads(campaign.state_path.read_text()).get("hero", {}).get("name", "")
     except (OSError, ValueError):
-        return None
-    if not name:
-        return None
-    # The dream may give the hero a full name, like "Wren Ashby".
-    return campaign.wiki.find(name) or next(
-        (p for p in campaign.wiki.all() if p.kind == "person" and name.lower() in p.name.lower().split()), None)
+        return ""
+
+
+def _hero_page(campaign) -> Page | None:
+    name = _hero_name(campaign)
+    pages = campaign.wiki.all()
+    # The dream may give the hero a full name, like "Wren Ashby", or call the page "The Hero".
+    return (name and campaign.wiki.find(name)) or next(
+        (p for p in pages if p.kind == "person" and name and name.lower() in p.name.lower().split()), None) or next(
+        (p for p in pages if any(n.lower() in HERO_STAND_INS for n in p.names())), None)
 
 
 # --- running it ----------------------------------------------------------------
