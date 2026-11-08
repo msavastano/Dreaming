@@ -31,6 +31,7 @@ class Note:
     status: str = "unverified"
     about: tuple[str, ...] = ()
     created: str = ""
+    correction: str = ""
 
 
 class NotesStore:
@@ -53,6 +54,21 @@ class NotesStore:
             about=tuple(a.strip() for a in about if a.strip()),
             created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         )
+        self._write(note)
+        return note
+
+    def set_status(self, note_id: str, status: str, correction: str = "") -> None:
+        """Dreaming marks each note confirmed, wrong or unsupported."""
+        path = self.folder / f"{note_id}.md"
+        if not path.exists():
+            return
+        note = self._read(path)
+        note.status = status
+        note.correction = " ".join(correction.split())
+        self._write(note)
+
+    def _write(self, note: Note) -> None:
+        correction = f"correction: {note.correction}\n" if note.correction else ""
         (self.folder / f"{note.id}.md").write_text(
             "---\n"
             f"id: {note.id}\n"
@@ -60,10 +76,10 @@ class NotesStore:
             f"status: {note.status}\n"
             f"about: {', '.join(note.about)}\n"
             f"created: {note.created}\n"
+            f"{correction}"
             "---\n"
             f"{note.text}\n"
         )
-        return note
 
     @staticmethod
     def _read(path: Path) -> Note:
@@ -82,18 +98,20 @@ class NotesStore:
             status=meta.get("status", "unverified"),
             about=tuple(a.strip() for a in meta.get("about", "").split(",") if a.strip()),
             created=meta.get("created", ""),
+            correction=meta.get("correction", ""),
         )
 
 
 def format_note(note: Note) -> str:
     about = f" (about: {', '.join(note.about)})" if note.about else ""
-    return f"[{note.id}, from {note.turn}, {note.status}] {note.text}{about}"
+    fix = f" Correction: {note.correction}" if note.correction else ""
+    return f"[{note.id}, from {note.turn}, {note.status}] {note.text}{about}{fix}"
 
 
 @dataclass
 class Hit:
     id: str
-    kind: str  # "note" or "turn"
+    kind: str  # "note", "turn" or "wiki"
     text: str
 
 
@@ -106,7 +124,7 @@ what when where which who why will with you your yours i'm it's don't
 
 
 def search(transcripts: Path, notes: NotesStore, query: str, limit: int = 6,
-           exclude: set[str] | frozenset[str] = frozenset(), min_terms: int = 1) -> list[Hit]:
+           exclude: set[str] | frozenset[str] = frozenset(), min_terms: int = 1, wiki=None) -> list[Hit]:
     """Notes and turns that match `query`, best first.
 
     `exclude` skips ids the caller already has (turns in the window, notes in the
@@ -115,6 +133,11 @@ def search(transcripts: Path, notes: NotesStore, query: str, limit: int = 6,
     """
     docs: list[Hit] = [Hit(n.id, "note", f"{n.text} (about: {', '.join(n.about)})" if n.about else n.text)
                        for n in notes.all() if n.id not in exclude]
+    if wiki is not None:
+        for page in wiki.all():
+            if page.slug not in exclude:
+                facts = " ".join(f.text for f in page.facts)
+                docs.append(Hit(page.slug, "wiki", f"{page.name} ({page.kind}): {page.summary} {facts}"))
     for t in load_all_turns(transcripts):
         if t["id"] not in exclude:
             docs.append(Hit(t["id"], "turn", f"Player: {t['player']}\nGM: {t['narration']}"))

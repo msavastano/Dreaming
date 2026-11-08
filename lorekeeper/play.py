@@ -4,7 +4,7 @@
     python -m lorekeeper.play --campaign quest2  # a second campaign
     python -m lorekeeper.play --provider claude  # narrate with Haiku instead
 
-In-game commands: /state, /notes, /search <words>, /usage, /quit
+In-game commands: /state, /notes, /wiki [name], /search <words>, /dream, /usage, /quit
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from . import gm
 from .config import load_config
 from .llm import Budgeted, BudgetExceeded, Reply, UsageLog, make_provider
 from .memory import NotesStore, format_hits, format_note, search
+from .wiki import WikiStore
 from .state import apply_changes, format_money, load_state, save_state
 from .transcript import Transcript, load_window
 
@@ -27,7 +28,7 @@ MAX_FLAG_CHARS = 60  # longer flag values are facts, so they go to notes instead
 
 
 class Campaign:
-    """A campaign is one folder: canon.md, state.json, transcripts/, notes/, usage.jsonl."""
+    """A campaign is one folder: canon.md, state.json, transcripts/, notes/, wiki/, usage.jsonl."""
 
     def __init__(self, folder: Path):
         self.folder = folder
@@ -40,6 +41,7 @@ class Campaign:
         self.transcripts = folder / "transcripts"
         self.usage = UsageLog(folder / "usage.jsonl")
         self.notes = NotesStore(folder / "notes")
+        self.wiki = WikiStore(folder / "wiki")
 
 
 class Game:
@@ -49,9 +51,14 @@ class Game:
         self.config = config
         self.state = load_state(campaign.state_path)
         self._move_long_flags_to_notes()
-        self.system = gm.build_system(rules, campaign.canon_path.read_text())
+        self.rules = rules
+        self.reload_canon()
         self.transcript = Transcript(campaign.transcripts)
         self.last_reply: Reply | None = None
+
+    def reload_canon(self) -> None:
+        """Canon is part of the cached system prompt, so it only changes after a dream."""
+        self.system = gm.build_system(self.rules, self.campaign.canon_path.read_text())
 
     def _move_long_flags_to_notes(self) -> None:
         """Campaigns from before flags were kept short: move long flags into notes once."""
@@ -86,21 +93,24 @@ class Game:
             note = self.campaign.notes.add(fact, about, turn=self.transcript.next_id())
             return f"Saved as {note.id}."
         if name == "search_memory":
-            hits = search(self.campaign.transcripts, self.campaign.notes, str(args.get("query", "")))
+            hits = search(self.campaign.transcripts, self.campaign.notes, str(args.get("query", "")),
+                          wiki=self.campaign.wiki)
             return format_hits(hits)
         return f"Unknown tool {name!r}."
 
     def take_turn(self, move: str) -> gm.Turn:
         cfg = self.config["narration"]
         recent = load_window(self.campaign.transcripts, cfg["window_turns"], cfg["window_step"])
-        shown_notes = self.campaign.notes.all()[-cfg["notes_in_prompt"]:]
+        # Dreamed notes live on in the wiki and canon, so only unchecked ones go in the prompt.
+        unchecked = [n for n in self.campaign.notes.all() if n.status == "unverified"]
+        shown_notes = unchecked[-cfg["notes_in_prompt"]:]
         notes = [format_note(n) for n in shown_notes]
         recalled = []
         if cfg["recall_hits"] > 0:
             # Free and local: look up the player's words in everything the prompt leaves out.
             seen = {t["id"] for t in recent} | {n.id for n in shown_notes}
             recalled = search(self.campaign.transcripts, self.campaign.notes, move,
-                              limit=cfg["recall_hits"], exclude=seen, min_terms=2)
+                              limit=cfg["recall_hits"], exclude=seen, min_terms=2, wiki=self.campaign.wiki)
         messages = gm.build_messages(recent, self.state, move, notes,
                                      format_hits(recalled, cfg["recall_chars"]) if recalled else None)
         reply = self.llm.complete(
@@ -178,7 +188,38 @@ def format_usage(usage: UsageLog) -> str:
     )
 
 
+def run_dream(game: Game, config: dict, force: bool) -> None:
+    from .dream import DreamError, dream, format_dream, make_dream_llm
+
+    try:
+        llm = make_dream_llm(config, game.campaign.usage)
+        print("Dreaming...")
+        result = dream(game.campaign, llm, gm.load_rules(ROOT / "prompts", "dream.md"), config, force=force)
+    except (DreamError, BudgetExceeded) as e:
+        print(e)
+        return
+    except Exception as e:  # usually a missing API key for the dream provider
+        print(f"Could not dream: {e}")
+        return
+    if result is None:
+        print("Nothing new to dream about yet.")
+        return
+    game.reload_canon()
+    print(format_dream(result))
+
+
+def format_page(page) -> str:
+    lines = [f"{page.name} ({page.kind}): {page.summary}"]
+    if page.aliases:
+        lines.append(f"Also called: {', '.join(page.aliases)}")
+    lines += [f"- {f.text} [{f.turn}]" for f in page.facts]
+    lines += [f"! {c}" for c in page.contradictions]
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
+    from .dream import load_dream_state, undreamed_turns
+
     parser = argparse.ArgumentParser(description="Play Lorekeeper.")
     parser.add_argument("--campaign", default="default", help="campaign name (a folder under campaigns/)")
     parser.add_argument("--provider", choices=["gemini", "claude"], help="override the narration provider")
@@ -197,7 +238,10 @@ def main(argv: list[str] | None = None) -> int:
     game = Game(campaign, llm, gm.load_rules(ROOT / "prompts"), config)
 
     print(f"Lorekeeper. Campaign '{args.campaign}', session {game.transcript.session}.")
-    print("Commands: /state  /notes  /search <words>  /usage  /quit\n")
+    print("Commands: /state  /notes  /wiki [name]  /search <words>  /dream  /usage  /quit\n")
+    recap = load_dream_state(campaign).get("recap")
+    if recap:
+        print(f"Previously: {recap}\n")
     print(format_state(game.state), "\n")
 
     while True:
@@ -217,9 +261,23 @@ def main(argv: list[str] | None = None) -> int:
             notes = campaign.notes.all()
             print("\n".join(format_note(n) for n in notes) if notes else "No notes yet.", "\n")
             continue
+        if move.startswith("/wiki"):
+            name = move[len("/wiki"):].strip()
+            if name:
+                page = campaign.wiki.find(name)
+                print(format_page(page) if page else f"No page for {name!r}.", "\n")
+            else:
+                pages = campaign.wiki.all()
+                print("\n".join(p.cast_line() for p in pages) if pages else "No wiki pages yet. They appear after /dream.", "\n")
+            continue
         if move.startswith("/search"):
             query = move[len("/search"):].strip()
-            print(format_hits(search(campaign.transcripts, campaign.notes, query)) if query else "Usage: /search <words>", "\n")
+            print(format_hits(search(campaign.transcripts, campaign.notes, query, wiki=campaign.wiki))
+                  if query else "Usage: /search <words>", "\n")
+            continue
+        if move == "/dream":
+            run_dream(game, config, force=True)
+            print()
             continue
         if move == "/usage":
             print(format_usage(campaign.usage), "\n")
@@ -237,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
             notes.append(f"state not updated: {turn.parse_error}")
         print("  ".join(notes), "\n")
 
+    if config["dream"]["on_quit"] and len(undreamed_turns(campaign)) >= config["dream"]["min_turns"]:
+        run_dream(game, config, force=False)
     print(format_usage(campaign.usage))
     print(f"Saved. This session's transcript: {game.transcript.path}")
     return 0

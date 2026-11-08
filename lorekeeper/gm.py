@@ -209,5 +209,5 @@ def _parse_fenced(text: str) -> Turn:
     return Turn(narration=narration, state_change=change)
 
 
-def load_rules(prompts_dir: Path) -> str:
-    return (prompts_dir / "gm.md").read_text()
+def load_rules(prompts_dir: Path, name: str = "gm.md") -> str:
+    return (prompts_dir / name).read_text()

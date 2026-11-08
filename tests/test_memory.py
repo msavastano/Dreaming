@@ -172,6 +172,7 @@ def test_claude_loop_runs_tools_then_answers():
 
     assert json.loads(reply.text)["narration"] == "Done."
     assert reply.calls == 2 and meter.calls == 2 and reply.input_tokens == 20
+    assert reply.stop_reason == "end_turn"
     assert reply.tool_calls == [{"name": "remember", "args": {"fact": "x", "about": []}, "result": "Saved as n0001."}]
     assert sent[0]["output_config"]["format"]["type"] == "json_schema"
     assert all(t["strict"] for t in sent[0]["tools"])
