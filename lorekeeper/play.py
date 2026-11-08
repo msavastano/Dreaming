@@ -10,15 +10,16 @@ In-game commands: /state, /usage, /quit
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
-import sys
 from pathlib import Path
 
 from . import gm
 from .config import load_config
 from .llm import Budgeted, BudgetExceeded, UsageLog, make_provider
-from .state import apply_changes, load_state, save_state
-from .transcript import Transcript, load_recent_turns
+from .llm import Reply
+from .state import apply_changes, format_money, load_state, save_state
+from .transcript import Transcript, load_window
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = Path(__file__).resolve().parent / "templates"
@@ -47,14 +48,14 @@ class Game:
         self.state = load_state(campaign.state_path)
         self.system = gm.build_system(rules, campaign.canon_path.read_text())
         self.transcript = Transcript(campaign.transcripts)
+        self.last_reply: Reply | None = None
 
     def take_turn(self, move: str) -> gm.Turn:
-        window = self.config["narration"]["window_turns"]
-        recent = load_recent_turns(self.campaign.transcripts, window)
+        narration = self.config["narration"]
+        recent = load_window(self.campaign.transcripts, narration["window_turns"], narration["window_step"])
         messages = gm.build_messages(recent, self.state, move)
-        reply = self.llm.complete(
-            self.system, messages, self.config["narration"]["max_output_tokens"], purpose="narrate"
-        )
+        reply = self.llm.complete(self.system, messages, narration["max_output_tokens"], purpose="narrate")
+        self.last_reply = reply
         turn = gm.parse_reply(reply.text)
         if turn.state_change:
             self.state = apply_changes(self.state, turn.state_change)
@@ -65,11 +66,23 @@ class Game:
 
 def format_state(state: dict) -> str:
     hero = state.get("hero", {})
-    items = ", ".join(state.get("inventory", [])) or "nothing"
-    return (
+    lines = [
         f"{hero.get('name', 'Hero')}  HP {hero.get('hp')}/{hero.get('max_hp')}  "
-        f"Gold {state.get('gold', 0)}\nAt: {state.get('location', '?')}\nCarrying: {items}"
-    )
+        f"Purse {format_money(state.get('copper', 0))}",
+        f"At: {state.get('location', '?')}",
+        f"Carrying: {', '.join(state.get('inventory', [])) or 'nothing'}",
+    ]
+    for place, items in state.get("stored", {}).items():
+        lines.append(f"Left at {place}: {', '.join(items)}")
+    if state.get("flags"):
+        lines.append("Flags: " + ", ".join(f"{k}={json.dumps(v)}" for k, v in state["flags"].items()))
+    return "\n".join(lines)
+
+
+def format_turn_tokens(reply: Reply | None) -> str:
+    if reply is None:
+        return ""
+    return f"[{reply.input_tokens:,} in ({reply.cached_tokens:,} cached) / {reply.output_tokens:,} out]"
 
 
 def format_usage(usage: UsageLog) -> str:
@@ -128,8 +141,10 @@ def main(argv: list[str] | None = None) -> int:
             print(e)
             break
         print(f"\n{turn.narration}\n")
+        notes = [format_turn_tokens(game.last_reply)]
         if turn.parse_error:
-            print(f"(Note: the game master's state update was ignored: {turn.parse_error})\n", file=sys.stderr)
+            notes.append(f"state not updated: {turn.parse_error}")
+        print("  ".join(notes), "\n")
 
     print(format_usage(campaign.usage))
     print(f"Saved. This session's transcript: {game.transcript.path}")

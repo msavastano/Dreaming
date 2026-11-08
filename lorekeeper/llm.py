@@ -154,7 +154,7 @@ class ClaudeProvider:
             max_tokens=max_tokens,
             # The system prompt (rules + canon) is the same every turn, so cache it.
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": m.role, "content": m.text} for m in messages],
+            messages=self._with_history_cache(messages),
             output_config={"effort": self.effort},
         )
         if response.stop_reason == "refusal":
@@ -171,6 +171,23 @@ class ClaudeProvider:
             output_tokens=u.output_tokens,
             cached_tokens=cache_read,
         )
+
+
+    @staticmethod
+    def _with_history_cache(messages: list[Message]) -> list[dict]:
+        """Mark the end of the replayed history as a cache point.
+
+        Everything up to the last narration is the same on the next turn, so
+        the next request reads it from cache. Only the final message (state and
+        the new move) is new each turn.
+        """
+        out: list[dict] = [{"role": m.role, "content": m.text} for m in messages]
+        if len(out) >= 2:
+            last_history = out[-2]
+            last_history["content"] = [
+                {"type": "text", "text": last_history["content"], "cache_control": {"type": "ephemeral"}}
+            ]
+        return out
 
 
 def make_provider(config: dict, override: str | None = None) -> Provider:
