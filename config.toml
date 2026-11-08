@@ -1,0 +1,25 @@
+# Lorekeeper settings. API keys come from the environment:
+#   GEMINI_API_KEY (or GOOGLE_API_KEY) for Gemini, ANTHROPIC_API_KEY for Claude.
+
+[narration]
+# Which provider narrates each turn: "gemini" (default, cheapest) or "claude".
+provider = "gemini"
+max_output_tokens = 1200
+# How many recent turns go into each prompt. Older turns are left out
+# (milestone 2 adds search so the game master can look them up).
+window_turns = 20
+
+[gemini]
+model = "gemini-3.8-flash"
+# MINIMAL, LOW, MEDIUM or HIGH. Lower is cheaper and faster.
+thinking_level = "LOW"
+
+[claude]
+model = "claude-haiku-5-5"
+# low, medium, high, xhigh or max. Lower is cheaper and faster.
+effort = "low"
+
+[budget]
+# Play stops for the day once this many tokens (input + output, all providers)
+# have been used. Counted from usage.jsonl in the campaign folder.
+daily_token_cap = 300000

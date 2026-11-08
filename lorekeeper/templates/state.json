@@ -1,0 +1,7 @@
+{
+  "hero": {"name": "Wren", "hp": 12, "max_hp": 12},
+  "location": "Thornwick, at the village gate",
+  "gold": 8,
+  "inventory": ["traveling cloak", "short sword", "sealed letter for Elder Maren", "two days of rations"],
+  "flags": {}
+}
