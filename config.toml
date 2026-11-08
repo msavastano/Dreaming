@@ -25,6 +25,20 @@ recall_hits = 3
 # Each recalled match is cut to this many characters to keep the prompt small.
 recall_chars = 400
 
+[dream]
+# Dreaming runs after play, so it can afford a little more thinking than narration.
+provider = "claude"        # "claude" (Haiku) or "gemini"
+effort = "medium"          # Claude effort for dreaming
+thinking_level = "MEDIUM"  # Gemini thinking level for dreaming
+# Dream when you quit if at least this many turns are new. /dream ignores it.
+min_turns = 10
+on_quit = true
+# Turns per dream call. A long backlog is dreamed in several calls.
+chunk_turns = 40
+max_output_tokens = 8000
+# At most this many wiki pages appear in the cast list in canon.md.
+cast_limit = 60
+
 [gemini]
 model = "gemini-3.8-flash"
 # MINIMAL, LOW, MEDIUM or HIGH. Lower is cheaper and faster.
