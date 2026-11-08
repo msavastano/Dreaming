@@ -268,3 +268,36 @@ def test_exact_phrase_ranks_first(tmp_path):
     assert [h.id for h in hits] == ["s001-t0001", "s001-t0002", "s001-t0003"]
     docs = [Hit("a", "turn", "magic magic magic"), Hit("b", "turn", "the magic lantern"), Hit("c", "turn", "a lantern")]
     assert [h.id for h in _search_simple(docs, ["magic", "lantern"], 5)][0] == "b"
+
+
+def test_recall_finds_the_magic_lantern_song(tmp_path):
+    """The test2 playtest: a detail from turn 2 asked about after the window moved on."""
+    campaign = Campaign(tmp_path / "camp")
+    t = Transcript(campaign.transcripts)
+    t.append("where am i", "You stand at the gate of Thornwick. Down the lane is the Crooked Lantern.", {})
+    t.append("I go to the Inn. It's name reminds me of song from a Bard from childhood called \"Magic Lantern\"",
+             "The name tugs at a memory of a bard's song from your childhood, \"Magic Lantern\".", {})
+    t.append("I tell her the letter came to me by magic.", "Maren's eyes narrow at the word magic.", {})
+    for i in range(22):
+        t.append(f"I wait {i}", "The lamp burns low by Maren's hearth.", {})
+    provider = FakeProvider([reply_json("Magic Lantern, you recall.")])
+    game = Game(campaign, Budgeted(provider, campaign.usage, 100_000), "RULES", load_config(None))
+
+    turn = game.take_turn("what was the song the inn's name reminded me of?")
+    assert turn.recalled[0] == "s001-t0002"
+    prompt = provider.calls[0][1][-1].text
+    assert "<recalled>" in prompt and "Magic Lantern" in prompt
+    # Turns already in the window are not recalled again.
+    assert all(i not in turn.recalled for i in ("s001-t0020", "s001-t0025"))
+
+
+def test_no_recall_for_weak_matches(tmp_path):
+    campaign = Campaign(tmp_path / "camp")
+    t = Transcript(campaign.transcripts)
+    t.append("I eat stew", "The stew is hot.", {})
+    for i in range(25):
+        t.append(f"I wait {i}", "Rain.", {})
+    provider = FakeProvider([reply_json("You walk.")])
+    game = Game(campaign, Budgeted(provider, campaign.usage, 100_000), "RULES", load_config(None))
+    turn = game.take_turn("I walk to the stew pot by the well")  # only one word matches
+    assert turn.recalled == [] and "<recalled>" not in provider.calls[0][1][-1].text

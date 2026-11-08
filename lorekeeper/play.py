@@ -93,8 +93,16 @@ class Game:
     def take_turn(self, move: str) -> gm.Turn:
         cfg = self.config["narration"]
         recent = load_window(self.campaign.transcripts, cfg["window_turns"], cfg["window_step"])
-        notes = [format_note(n) for n in self.campaign.notes.all()[-cfg["notes_in_prompt"]:]]
-        messages = gm.build_messages(recent, self.state, move, notes)
+        shown_notes = self.campaign.notes.all()[-cfg["notes_in_prompt"]:]
+        notes = [format_note(n) for n in shown_notes]
+        recalled = []
+        if cfg["recall_hits"] > 0:
+            # Free and local: look up the player's words in everything the prompt leaves out.
+            seen = {t["id"] for t in recent} | {n.id for n in shown_notes}
+            recalled = search(self.campaign.transcripts, self.campaign.notes, move,
+                              limit=cfg["recall_hits"], exclude=seen, min_terms=2)
+        messages = gm.build_messages(recent, self.state, move, notes,
+                                     format_hits(recalled, cfg["recall_chars"]) if recalled else None)
         reply = self.llm.complete(
             self.system,
             messages,
@@ -108,6 +116,7 @@ class Game:
         self.last_reply = reply
         turn = gm.parse_reply(reply.text)
         turn.tool_calls = list(reply.tool_calls)
+        turn.recalled = [h.id for h in recalled]
         if turn.state_change:
             turn.tool_calls += self._notes_from_flags(turn.state_change, self.transcript.next_id())
         if turn.state_change:
@@ -147,8 +156,8 @@ def format_turn_tokens(reply: Reply | None) -> str:
     return f"[{reply.input_tokens:,} in ({reply.cached_tokens:,} cached) / {reply.output_tokens:,} out{calls}]"
 
 
-def format_tool_calls(calls: list[dict]) -> list[str]:
-    lines = []
+def format_tool_calls(calls: list[dict], recalled: list[str] | None = None) -> list[str]:
+    lines = [f"  recalled: {', '.join(recalled)}"] if recalled else []
     for call in calls:
         if call["name"] == "remember":
             lines.append(f"  remembered: {call['args'].get('fact', '')}")
@@ -221,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             print(e)
             break
         print(f"\n{turn.narration}\n")
-        for line in format_tool_calls(turn.tool_calls):
+        for line in format_tool_calls(turn.tool_calls, turn.recalled):
             print(line)
         notes = [format_turn_tokens(game.last_reply)]
         if turn.parse_error:

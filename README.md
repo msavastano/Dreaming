@@ -52,7 +52,15 @@ The game master has two tools:
   `searched memory for: …`.
 
 The latest notes (40 by default, `narration.notes_in_prompt`) go into every
-prompt, so the game master sees them without searching. A turn that uses a
+prompt, so the game master sees them without searching.
+
+The game also recalls on its own. Before each turn it searches notes and old
+turns for the words in your move, locally and for free, and adds up to 3
+matches to the prompt (`narration.recall_hits`). It only counts a match when at
+least two of your words appear, and it skips turns the game master can already
+see. You'll see `recalled: s001-t0002` under a turn when this happens. The
+playtest showed why: asked about a song from turn 2, Haiku said there was no
+record instead of searching. A turn that uses a
 tool makes an extra model call, shown as `2 calls` in the token line. Each turn
 allows at most 3 tool rounds (`narration.max_tool_rounds`).
 

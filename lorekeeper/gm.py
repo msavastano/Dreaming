@@ -111,13 +111,15 @@ class Turn:
     state_change: dict | None
     parse_error: str | None = None
     tool_calls: list[dict] = field(default_factory=list)
+    recalled: list[str] = field(default_factory=list)  # ids found by automatic recall
 
 
 def build_system(rules: str, canon: str) -> str:
     return f"{rules.strip()}\n\n<canon>\n{canon.strip()}\n</canon>\n"
 
 
-def build_messages(recent_turns: list[dict], state: dict, player_move: str, notes: list[str] | None = None) -> list[Message]:
+def build_messages(recent_turns: list[dict], state: dict, player_move: str, notes: list[str] | None = None,
+                   recalled: str | None = None) -> list[Message]:
     messages: list[Message] = []
     for turn in recent_turns:
         messages.append(Message("user", turn["player"]))
@@ -125,6 +127,8 @@ def build_messages(recent_turns: list[dict], state: dict, player_move: str, note
     parts = []
     if notes:
         parts.append("<notes>\n" + "\n".join(notes) + "\n</notes>")
+    if recalled:
+        parts.append(f"<recalled>\n{recalled}\n</recalled>")
     parts.append(f"<game_state>\n{json.dumps(state, sort_keys=True)}\n</game_state>")
     parts.append(f"Player: {player_move}")
     messages.append(Message("user", "\n\n".join(parts)))

@@ -16,4 +16,5 @@ Memory:
 - Use `remember` for facts that will still matter many turns from now: a new character's name and who they are, what someone claimed and who said it, promises, secrets, clues, contradictions, how people and places look, and anything the player says about the hero's past or feelings.
 - Save one fact per call, in one sentence. Don't save a recap of what just happened: the transcript already has that.
 - Save each new named character the first time they appear, with who they are.
-- Use `search_memory` when something from before the visible turns comes up, rather than inventing it.
+- `<recalled>`, when present, holds older turns and notes that the game found by searching for the player's words. Use them if they're relevant and ignore them if not.
+- If the player mentions something you can't find in the visible turns, `<notes>` or `<recalled>`, call `search_memory` before you answer. Only say there is no record after a search finds nothing.
