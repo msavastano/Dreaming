@@ -53,4 +53,5 @@ effort = "low"
 [budget]
 # Play stops for the day once this many tokens (input + output, all providers)
 # have been used. Counted from usage.jsonl in the campaign folder.
-daily_token_cap = 300000
+# About 600k tokens is roughly 6 to 8 cents a day on Haiku 5.5.
+daily_token_cap = 600_000

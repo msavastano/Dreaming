@@ -13,7 +13,7 @@ DEFAULTS: dict = {
     "claude": {"model": "claude-haiku-5-5", "effort": "low"},
     "dream": {"provider": "claude", "effort": "medium", "thinking_level": "MEDIUM", "min_turns": 10,
               "chunk_turns": 25, "max_output_tokens": 16000, "cast_limit": 60, "on_quit": True},
-    "budget": {"daily_token_cap": 300_000},
+    "budget": {"daily_token_cap": 600_000},
 }
 
 
